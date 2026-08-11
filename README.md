@@ -10,6 +10,7 @@
 - 内存/磁盘告警、FD 压力、积压、低消费容量、unacked、重复投递、quorum 可用性和连接压力规则
 - RabbitMQ Management API 只读采集器
 - 文本、JSON、Markdown 三种报告格式
+- 历史诊断基线对比、整改复测结论和 Markdown 复测报告
 - 可批量生成带标签 JSONL 变体的数据生成器
 - 本地 RabbitMQ Docker 实验环境
 
@@ -54,7 +55,7 @@ export PYTHONPATH=src
 python3 -m rabbitmq_guard serve --enable-live
 ```
 
-打开 <http://127.0.0.1:8787>。工作台支持演示案例、JSON 快照上传、实时只读连接、历史诊断和 Markdown 报告下载。诊断记录保存在 `var/rabbitmq-guard.db`，实时连接密码只用于当次请求，不写入数据库。
+打开 <http://127.0.0.1:8787>。工作台支持演示案例、JSON 快照上传、实时只读连接、历史诊断和 Markdown 报告下载。任意历史记录都可以设为基线；打开同一集群的另一条记录后，工作台会展示新增、已解决和持续风险，并生成整改复测报告。诊断记录保存在 `var/rabbitmq-guard.db`，实时连接密码只用于当次请求，不写入数据库。
 
 为了避免把带有网络访问能力的接口暴露出去，启用实时连接时服务只允许绑定回环地址。当前版本是本地付费试点工具，不应直接作为公网 SaaS 部署。
 

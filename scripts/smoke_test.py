@@ -44,7 +44,7 @@ def main():
             assert "RabbitMQ Guard" in html
 
             _, health = request_json(base_url, "/api/health")
-            assert health == {"ok": True, "version": "0.1.0", "live_enabled": False}
+            assert health == {"ok": True, "version": "0.2.0", "live_enabled": False}
 
             _, result = request_json(
                 base_url,
@@ -59,6 +59,20 @@ def main():
                 report = response.read().decode("utf-8")
             assert "RabbitMQ Guard 诊断报告" in report
             assert "集群：lab" in report
+
+            _, healthy = request_json(
+                base_url,
+                "/api/analyze/scenario",
+                {"id": "healthy_baseline", "persist": True},
+            )
+            comparison_path = "/api/compare/{}/{}".format(run_id, healthy["run"]["id"])
+            _, comparison = request_json(base_url, comparison_path)
+            assert comparison["outcome"] == "improved"
+            assert comparison["summary"]["resolved"] == 1
+            with urlopen(base_url + comparison_path + "/report.md", timeout=3) as response:
+                comparison_report = response.read().decode("utf-8")
+            assert "RabbitMQ Guard 整改复测报告" in comparison_report
+            assert "已解决风险：1" in comparison_report
         finally:
             server.shutdown()
             server.server_close()

@@ -90,6 +90,24 @@
           <div><span>消费者</span><strong id="metric-consumers">-</strong></div>
         </section>
 
+        <section id="comparison-section" class="comparison-band hidden" aria-labelledby="comparison-title">
+          <div class="comparison-copy">
+            <div class="comparison-kicker">整改复测</div>
+            <h2 id="comparison-title">风险变化</h2>
+            <div id="comparison-meta" class="comparison-meta">-</div>
+          </div>
+          <div class="comparison-summary" aria-label="复测结果统计">
+            <div><strong id="comparison-resolved">0</strong><span>已解决</span></div>
+            <div><strong id="comparison-new">0</strong><span>新增</span></div>
+            <div><strong id="comparison-persisting">0</strong><span>持续</span></div>
+          </div>
+          <div class="comparison-actions">
+            <a id="download-comparison" class="icon-button" href="#" download title="下载复测报告" aria-label="下载复测报告">↓</a>
+            <button id="clear-baseline" class="icon-button" type="button" title="退出基线对比" aria-label="退出基线对比">×</button>
+          </div>
+          <div id="comparison-metrics" class="comparison-metrics" aria-label="集群指标变化"></div>
+        </section>
+
         <section class="findings-section" aria-labelledby="findings-title">
           <div class="section-heading">
             <h2 id="findings-title">诊断结果</h2>

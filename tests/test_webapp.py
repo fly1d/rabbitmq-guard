@@ -8,6 +8,7 @@ from urllib.request import Request, urlopen
 
 from rabbitmq_guard.storage import RunStore
 from rabbitmq_guard.webapp import create_server
+from rabbitmq_guard.comparison import compare_runs, render_comparison_markdown
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -29,6 +30,30 @@ class RunStoreTests(unittest.TestCase):
             loaded = store.get(saved["id"])
             self.assertIsNotNone(loaded)
             self.assertEqual("queue.no_consumers", loaded["findings"][0]["rule_id"])
+
+    def test_compare_runs_tracks_new_resolved_and_metric_changes(self) -> None:
+        from rabbitmq_guard.diagnostics import diagnose
+
+        healthy = json.loads(
+            (CASE_DIR / "00_healthy_baseline.json").read_text(encoding="utf-8")
+        )
+        memory_alarm = json.loads(
+            (CASE_DIR / "05_memory_alarm.json").read_text(encoding="utf-8")
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = RunStore(Path(temp_dir) / "guard.db")
+            baseline = store.save(healthy, diagnose(healthy), "整改前", "test")
+            current = store.save(memory_alarm, diagnose(memory_alarm), "整改后", "test")
+            comparison = compare_runs(baseline, current)
+
+        self.assertEqual("worsened", comparison["outcome"])
+        self.assertEqual(1, comparison["summary"]["new"])
+        self.assertEqual(0, comparison["summary"]["resolved"])
+        self.assertEqual("node.memory_alarm", comparison["findings"]["new"][0]["rule_id"])
+        self.assertEqual(6, comparison["metric_changes"][0]["delta"])
+        report = render_comparison_markdown(comparison)
+        self.assertIn("RabbitMQ Guard 整改复测报告", report)
+        self.assertIn("风险上升", report)
 
 
 class WebAppTests(unittest.TestCase):
@@ -102,6 +127,23 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual("critical", result["summary"]["status"])
         self.assertEqual("queue.quorum_lost", result["findings"][0]["rule_id"])
         self.assertEqual("upload", result["run"]["source_kind"])
+
+    def test_compare_api_and_report(self) -> None:
+        _, baseline = self.request_json(
+            "/api/analyze/scenario", {"id": "memory_alarm", "persist": True}
+        )
+        _, current = self.request_json(
+            "/api/analyze/scenario", {"id": "healthy_baseline", "persist": True}
+        )
+        path = "/api/compare/{}/{}".format(baseline["run"]["id"], current["run"]["id"])
+        _, comparison = self.request_json(path)
+        self.assertEqual("improved", comparison["outcome"])
+        self.assertEqual(1, comparison["summary"]["resolved"])
+        self.assertEqual(-8, comparison["summary"]["risk_score_delta"])
+        with urlopen(self.base_url + path + "/report.md", timeout=3) as response:
+            report = response.read().decode("utf-8")
+        self.assertIn("整改复测报告", report)
+        self.assertIn("已解决风险：1", report)
 
     def test_live_cannot_bind_public_interface(self) -> None:
         with self.assertRaisesRegex(ValueError, "回环地址"):
