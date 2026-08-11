@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "scenario": {
+    "id": "healthy_baseline",
+    "kind": "synthetic",
+    "title": "健康基线",
+    "description": "消息速率平衡、资源充足、quorum queue 全员在线。",
+    "expected_findings": [],
+    "sources": [
+      "https://www.rabbitmq.com/docs/monitoring",
+      "https://www.rabbitmq.com/docs/consumers"
+    ]
+  },
+  "capture": {"kind": "synthetic-baseline"},
+  "cluster": {"name": "lab", "connections": 12, "channels": 36, "queues": 1, "consumers": 4},
+  "nodes": [
+    {
+      "name": "rabbit@node1",
+      "running": true,
+      "mem_alarm": false,
+      "mem_used": 420000000,
+      "mem_limit": 1600000000,
+      "disk_free_alarm": false,
+      "disk_free": 42000000000,
+      "disk_free_limit": 1000000000,
+      "fd_used": 240,
+      "fd_total": 4096
+    }
+  ],
+  "queues": [
+    {
+      "vhost": "/",
+      "name": "orders",
+      "type": "quorum",
+      "state": "running",
+      "messages": 40,
+      "messages_ready": 22,
+      "messages_unacknowledged": 18,
+      "consumers": 4,
+      "consumer_capacity": 0.98,
+      "publish_rate": 82.0,
+      "deliver_rate": 81.6,
+      "ack_rate": 81.3,
+      "redeliver_rate": 0.2,
+      "members": ["rabbit@node1", "rabbit@node2", "rabbit@node3"],
+      "online_members": ["rabbit@node1", "rabbit@node2", "rabbit@node3"],
+      "leader": "rabbit@node1"
+    }
+  ],
+  "connections": [],
+  "activity": {"connection_open_rate": 0.1}
+}

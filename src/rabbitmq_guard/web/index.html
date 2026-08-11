@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>RabbitMQ Guard</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand-lockup">
+        <div class="brand-mark" aria-hidden="true">RG</div>
+        <div>
+          <div class="brand-name">RabbitMQ Guard</div>
+          <div class="brand-context">诊断工作台</div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <span id="server-state" class="server-state">本地</span>
+        <a id="download-report" class="command-button secondary hidden" href="#" download title="下载诊断报告">
+          <span aria-hidden="true">↓</span><span>报告</span>
+        </a>
+      </div>
+    </header>
+
+    <div class="app-shell">
+      <aside class="source-panel" aria-label="诊断输入">
+        <div class="mode-tabs" role="tablist" aria-label="输入方式">
+          <button class="mode-tab active" type="button" role="tab" aria-selected="true" data-mode="scenario">案例</button>
+          <button class="mode-tab" type="button" role="tab" aria-selected="false" data-mode="upload">快照</button>
+          <button class="mode-tab" type="button" role="tab" aria-selected="false" data-mode="live">实时</button>
+        </div>
+
+        <section class="source-content" data-panel="scenario">
+          <label class="field-label" for="scenario-select">演示案例</label>
+          <select id="scenario-select" class="field-control"></select>
+          <p id="scenario-description" class="field-note"></p>
+          <button id="run-scenario" class="command-button primary full" type="button">
+            <span aria-hidden="true">▶</span><span>运行诊断</span>
+          </button>
+        </section>
+
+        <section class="source-content hidden" data-panel="upload">
+          <label class="file-picker" for="snapshot-file">
+            <span class="file-symbol" aria-hidden="true">↑</span>
+            <span id="file-label">选择 JSON 快照</span>
+          </label>
+          <input id="snapshot-file" class="visually-hidden" type="file" accept="application/json,.json">
+          <button id="analyze-file" class="command-button primary full" type="button" disabled>
+            <span aria-hidden="true">✓</span><span>分析快照</span>
+          </button>
+        </section>
+
+        <section class="source-content hidden" data-panel="live">
+          <label class="field-label" for="live-url">Management API</label>
+          <input id="live-url" class="field-control" type="url" value="http://localhost:15673" spellcheck="false">
+          <label class="field-label" for="live-user">用户名</label>
+          <input id="live-user" class="field-control" type="text" value="guard" autocomplete="username">
+          <label class="field-label" for="live-password">密码</label>
+          <input id="live-password" class="field-control" type="password" autocomplete="current-password">
+          <div id="live-disabled" class="inline-notice hidden">实时连接未启用</div>
+          <button id="run-live" class="command-button primary full" type="button">
+            <span aria-hidden="true">↻</span><span>连接并诊断</span>
+          </button>
+        </section>
+
+        <div class="privacy-line"><span aria-hidden="true">●</span> 只读模式</div>
+      </aside>
+
+      <main class="workspace">
+        <section class="summary-band" aria-labelledby="result-title">
+          <div>
+            <div id="result-kicker" class="result-kicker">演示诊断</div>
+            <h1 id="result-title">等待诊断结果</h1>
+            <div id="result-meta" class="result-meta">-</div>
+          </div>
+          <div id="risk-summary" class="risk-summary" aria-label="风险统计">
+            <div class="risk-stat critical"><strong id="count-critical">0</strong><span>严重</span></div>
+            <div class="risk-stat high"><strong id="count-high">0</strong><span>高</span></div>
+            <div class="risk-stat medium"><strong id="count-medium">0</strong><span>中</span></div>
+            <div class="risk-stat low"><strong id="count-low">0</strong><span>低</span></div>
+          </div>
+        </section>
+
+        <section class="cluster-strip" aria-label="集群指标">
+          <div><span>连接</span><strong id="metric-connections">-</strong></div>
+          <div><span>Channels</span><strong id="metric-channels">-</strong></div>
+          <div><span>队列</span><strong id="metric-queues">-</strong></div>
+          <div><span>消费者</span><strong id="metric-consumers">-</strong></div>
+        </section>
+
+        <section class="findings-section" aria-labelledby="findings-title">
+          <div class="section-heading">
+            <h2 id="findings-title">诊断结果</h2>
+            <span id="findings-count">0 项</span>
+          </div>
+          <div id="findings-list" class="findings-list">
+            <div class="empty-state">请选择一个诊断输入</div>
+          </div>
+        </section>
+      </main>
+
+      <aside class="history-panel" aria-label="诊断历史">
+        <div class="history-heading">
+          <h2>历史记录</h2>
+          <button id="refresh-history" class="icon-button" type="button" title="刷新历史记录" aria-label="刷新历史记录">↻</button>
+        </div>
+        <div id="history-list" class="history-list"></div>
+      </aside>
+    </div>
+
+    <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+    <script src="/app.js"></script>
+  </body>
+</html>

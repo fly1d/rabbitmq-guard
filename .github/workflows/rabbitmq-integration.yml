@@ -1,0 +1,53 @@
+name: RabbitMQ integration
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rabbitmq-integration
+  cancel-in-progress: false
+
+jobs:
+  live-collector:
+    name: Live collector (RabbitMQ 4.1)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      rabbitmq:
+        image: rabbitmq:4.1-management
+        env:
+          RABBITMQ_DEFAULT_USER: guard
+          RABBITMQ_DEFAULT_PASS: guard-ci-only
+        ports:
+          - 15672:15672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install package
+        run: python -m pip install --disable-pip-version-check -e .
+      - name: Create a no-consumer backlog
+        run: >-
+          python lab/create_no_consumer_backlog.py
+          --url http://127.0.0.1:15672
+          --username guard
+          --password guard-ci-only
+          --count 25
+      - name: Verify live collection and diagnosis
+        env:
+          RABBITMQ_PASSWORD: guard-ci-only
+        run: python scripts/live_integration_test.py

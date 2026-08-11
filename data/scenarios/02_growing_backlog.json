@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "scenario": {
+    "id": "growing_backlog",
+    "kind": "synthetic",
+    "title": "生产速率高于消费能力",
+    "description": "生产速率约为交付速率四倍，队列积压并且消费者容量偏低。",
+    "expected_findings": ["queue.growing_backlog", "queue.low_consumer_capacity"],
+    "sources": [
+      "https://www.rabbitmq.com/docs/consumers",
+      "https://www.rabbitmq.com/docs/monitoring"
+    ]
+  },
+  "capture": {"kind": "synthetic-baseline"},
+  "cluster": {"name": "lab", "connections": 18, "channels": 48, "queues": 1, "consumers": 4},
+  "nodes": [
+    {"name": "rabbit@node1", "running": true, "mem_alarm": false, "disk_free_alarm": false, "fd_used": 320, "fd_total": 4096}
+  ],
+  "queues": [
+    {
+      "vhost": "/prod",
+      "name": "image.resize",
+      "type": "classic",
+      "state": "running",
+      "messages": 58120,
+      "messages_ready": 58000,
+      "messages_unacknowledged": 120,
+      "consumers": 4,
+      "consumer_capacity": 0.22,
+      "publish_rate": 520.0,
+      "deliver_rate": 130.0,
+      "ack_rate": 128.0,
+      "redeliver_rate": 1.0
+    }
+  ],
+  "connections": [],
+  "activity": {"connection_open_rate": 0.3}
+}

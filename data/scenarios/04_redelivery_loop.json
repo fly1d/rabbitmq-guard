@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "scenario": {
+    "id": "redelivery_loop",
+    "kind": "synthetic",
+    "title": "立即重入队造成重复投递循环",
+    "description": "消费者持续拒绝并立即 requeue，同一批消息高速重复投递。",
+    "expected_findings": ["queue.redelivery_loop"],
+    "sources": [
+      "https://www.rabbitmq.com/docs/confirms",
+      "https://www.rabbitmq.com/docs/quorum-queues"
+    ]
+  },
+  "capture": {"kind": "synthetic-baseline"},
+  "cluster": {"name": "lab", "connections": 10, "channels": 24, "queues": 1, "consumers": 6},
+  "nodes": [
+    {"name": "rabbit@node1", "running": true, "mem_alarm": false, "disk_free_alarm": false, "fd_used": 250, "fd_total": 4096}
+  ],
+  "queues": [
+    {
+      "vhost": "/",
+      "name": "webhook.deliver",
+      "type": "classic",
+      "state": "running",
+      "messages": 150,
+      "messages_ready": 100,
+      "messages_unacknowledged": 50,
+      "consumers": 6,
+      "consumer_capacity": 0.95,
+      "publish_rate": 8.0,
+      "deliver_rate": 800.0,
+      "ack_rate": 12.0,
+      "redeliver_rate": 620.0
+    }
+  ],
+  "connections": [],
+  "activity": {"connection_open_rate": 0.2}
+}

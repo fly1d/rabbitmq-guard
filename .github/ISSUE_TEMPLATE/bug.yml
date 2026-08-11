@@ -1,0 +1,35 @@
+name: Bug 报告
+description: 报告可复现的错误或回归
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: textarea
+    id: impact
+    attributes:
+      label: 影响
+      description: 发生了什么，影响了谁？
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      description: 请提供最小步骤和脱敏输入。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本或提交
+      placeholder: v0.1.0 或 commit SHA
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 日志与证据
+      description: 删除密码、令牌、客户标识和敏感消息内容后再提交。

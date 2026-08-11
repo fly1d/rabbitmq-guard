@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "scenario": {
+    "id": "fd_pressure",
+    "kind": "synthetic",
+    "title": "文件描述符接近上限",
+    "description": "节点已使用超过 90% 的文件描述符，新连接存在被拒绝风险。",
+    "expected_findings": ["node.fd_pressure"],
+    "sources": [
+      "https://www.rabbitmq.com/docs/alarms",
+      "https://www.rabbitmq.com/docs/monitoring"
+    ]
+  },
+  "capture": {"kind": "synthetic-baseline"},
+  "cluster": {"name": "lab", "connections": 3350, "channels": 3700, "queues": 1, "consumers": 20},
+  "nodes": [
+    {
+      "name": "rabbit@node1",
+      "running": true,
+      "mem_alarm": false,
+      "disk_free_alarm": false,
+      "fd_used": 3800,
+      "fd_total": 4096
+    }
+  ],
+  "queues": [
+    {
+      "vhost": "/",
+      "name": "notifications",
+      "type": "classic",
+      "state": "running",
+      "messages": 30,
+      "messages_ready": 10,
+      "messages_unacknowledged": 20,
+      "consumers": 20,
+      "consumer_capacity": 1.0,
+      "publish_rate": 120.0,
+      "deliver_rate": 120.0,
+      "ack_rate": 119.0,
+      "redeliver_rate": 0.1
+    }
+  ],
+  "connections": [],
+  "activity": {"connection_open_rate": 2.0}
+}

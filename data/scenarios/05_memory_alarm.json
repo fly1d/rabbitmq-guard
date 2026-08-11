@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "scenario": {
+    "id": "memory_alarm",
+    "kind": "synthetic",
+    "title": "节点内存告警阻塞发布连接",
+    "description": "节点超过内存水位，发布连接进入 blocked/blocking 状态。",
+    "expected_findings": ["node.memory_alarm"],
+    "sources": [
+      "https://www.rabbitmq.com/docs/alarms",
+      "https://www.rabbitmq.com/docs/monitoring"
+    ]
+  },
+  "capture": {"kind": "synthetic-baseline"},
+  "cluster": {"name": "lab", "connections": 18, "channels": 64, "queues": 1, "consumers": 4},
+  "nodes": [
+    {
+      "name": "rabbit@node1",
+      "running": true,
+      "mem_alarm": true,
+      "mem_used": 1900000000,
+      "mem_limit": 1600000000,
+      "disk_free_alarm": false,
+      "disk_free": 28000000000,
+      "disk_free_limit": 1000000000,
+      "fd_used": 520,
+      "fd_total": 4096
+    }
+  ],
+  "queues": [
+    {
+      "vhost": "/",
+      "name": "events",
+      "type": "classic",
+      "state": "running",
+      "messages": 4200,
+      "messages_ready": 4000,
+      "messages_unacknowledged": 200,
+      "consumers": 4,
+      "consumer_capacity": 0.88,
+      "publish_rate": 0.0,
+      "deliver_rate": 95.0,
+      "ack_rate": 94.0,
+      "redeliver_rate": 0.1
+    }
+  ],
+  "connections": [
+    {"name": "publisher-1", "state": "blocked", "channels": 2},
+    {"name": "publisher-2", "state": "blocking", "channels": 2},
+    {"name": "consumer-1", "state": "running", "channels": 1}
+  ],
+  "activity": {"connection_open_rate": 0.1}
+}

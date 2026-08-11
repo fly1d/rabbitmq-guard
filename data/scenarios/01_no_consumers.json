@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "scenario": {
+    "id": "no_consumers",
+    "kind": "synthetic",
+    "title": "消费者全部离线",
+    "description": "队列仍在接收消息，但在线消费者数量为零。",
+    "expected_findings": ["queue.no_consumers"],
+    "sources": [
+      "https://www.rabbitmq.com/docs/consumers",
+      "https://www.rabbitmq.com/docs/monitoring"
+    ]
+  },
+  "capture": {"kind": "synthetic-baseline"},
+  "cluster": {"name": "lab", "connections": 8, "channels": 16, "queues": 1, "consumers": 0},
+  "nodes": [
+    {"name": "rabbit@node1", "running": true, "mem_alarm": false, "disk_free_alarm": false, "fd_used": 180, "fd_total": 4096}
+  ],
+  "queues": [
+    {
+      "vhost": "/",
+      "name": "invoice.generate",
+      "type": "classic",
+      "state": "running",
+      "messages": 2400,
+      "messages_ready": 2400,
+      "messages_unacknowledged": 0,
+      "consumers": 0,
+      "consumer_capacity": 0.0,
+      "publish_rate": 14.2,
+      "deliver_rate": 0.0,
+      "ack_rate": 0.0,
+      "redeliver_rate": 0.0
+    }
+  ],
+  "connections": [],
+  "activity": {"connection_open_rate": 0.1}
+}

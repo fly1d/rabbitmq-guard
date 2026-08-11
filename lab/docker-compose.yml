@@ -1,0 +1,23 @@
+services:
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    hostname: rabbit-lab
+    environment:
+      RABBITMQ_DEFAULT_USER: guard
+      RABBITMQ_DEFAULT_PASS: guard-local-only
+    command: >-
+      sh -c "rabbitmq-plugins enable --offline rabbitmq_prometheus && rabbitmq-server"
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+      - "15693:15692"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
+volumes:
+  rabbitmq-data:

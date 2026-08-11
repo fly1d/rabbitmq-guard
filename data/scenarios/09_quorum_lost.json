@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "scenario": {
+    "id": "quorum_lost",
+    "kind": "synthetic",
+    "title": "Quorum queue 丢失多数成员",
+    "description": "五成员队列只剩两个在线成员，无法选出多数并继续处理操作。",
+    "expected_findings": ["queue.quorum_lost"],
+    "sources": ["https://www.rabbitmq.com/docs/quorum-queues"]
+  },
+  "capture": {"kind": "synthetic-baseline"},
+  "cluster": {"name": "lab", "connections": 7, "channels": 18, "queues": 1, "consumers": 0},
+  "nodes": [
+    {"name": "rabbit@node1", "running": true, "mem_alarm": false, "disk_free_alarm": false, "fd_used": 210, "fd_total": 4096},
+    {"name": "rabbit@node2", "running": true, "mem_alarm": false, "disk_free_alarm": false, "fd_used": 205, "fd_total": 4096},
+    {"name": "rabbit@node3", "running": false, "mem_alarm": false, "disk_free_alarm": false, "fd_used": 0, "fd_total": 4096},
+    {"name": "rabbit@node4", "running": false, "mem_alarm": false, "disk_free_alarm": false, "fd_used": 0, "fd_total": 4096},
+    {"name": "rabbit@node5", "running": false, "mem_alarm": false, "disk_free_alarm": false, "fd_used": 0, "fd_total": 4096}
+  ],
+  "queues": [
+    {
+      "vhost": "/prod",
+      "name": "ledger.commands",
+      "type": "quorum",
+      "state": "down",
+      "messages": 0,
+      "messages_ready": 0,
+      "messages_unacknowledged": 0,
+      "consumers": 0,
+      "consumer_capacity": 0.0,
+      "publish_rate": 0.0,
+      "deliver_rate": 0.0,
+      "ack_rate": 0.0,
+      "redeliver_rate": 0.0,
+      "members": ["rabbit@node1", "rabbit@node2", "rabbit@node3", "rabbit@node4", "rabbit@node5"],
+      "online_members": ["rabbit@node1", "rabbit@node2"],
+      "leader": null
+    }
+  ],
+  "connections": [],
+  "activity": {"connection_open_rate": 0.0}
+}

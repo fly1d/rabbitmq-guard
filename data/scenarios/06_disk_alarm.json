@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "scenario": {
+    "id": "disk_alarm",
+    "kind": "synthetic",
+    "title": "节点磁盘空间告警",
+    "description": "数据目录可用磁盘低于水位，发布连接被保护性阻塞。",
+    "expected_findings": ["node.disk_alarm"],
+    "sources": [
+      "https://www.rabbitmq.com/docs/alarms",
+      "https://www.rabbitmq.com/docs/monitoring"
+    ]
+  },
+  "capture": {"kind": "synthetic-baseline"},
+  "cluster": {"name": "lab", "connections": 22, "channels": 70, "queues": 1, "consumers": 3},
+  "nodes": [
+    {
+      "name": "rabbit@node1",
+      "running": true,
+      "mem_alarm": false,
+      "mem_used": 710000000,
+      "mem_limit": 1600000000,
+      "disk_free_alarm": true,
+      "disk_free": 420000000,
+      "disk_free_limit": 1000000000,
+      "fd_used": 440,
+      "fd_total": 4096
+    }
+  ],
+  "queues": [
+    {
+      "vhost": "/",
+      "name": "audit.log",
+      "type": "quorum",
+      "state": "running",
+      "messages": 7800,
+      "messages_ready": 7700,
+      "messages_unacknowledged": 100,
+      "consumers": 3,
+      "consumer_capacity": 0.76,
+      "publish_rate": 0.0,
+      "deliver_rate": 60.0,
+      "ack_rate": 59.0,
+      "redeliver_rate": 0.2,
+      "members": ["rabbit@node1", "rabbit@node2", "rabbit@node3"],
+      "online_members": ["rabbit@node1", "rabbit@node2", "rabbit@node3"],
+      "leader": "rabbit@node1"
+    }
+  ],
+  "connections": [{"name": "audit-publisher", "state": "blocked", "channels": 4}],
+  "activity": {"connection_open_rate": 0.1}
+}

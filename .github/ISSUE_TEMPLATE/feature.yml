@@ -1,0 +1,37 @@
+name: 功能建议
+description: 提议一个有明确用户价值的改进
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 用户问题
+      description: 描述具体用户、发生频率和当前代价，不要先描述实现方案。
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 需求证据
+      description: 客户访谈、付费试点、事故记录或重复出现的支持请求。
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: 成功标准
+      description: 如何判断这个改动真正解决了问题？
+    validations:
+      required: true
+  - type: dropdown
+    id: urgency
+    attributes:
+      label: 紧迫度
+      options:
+        - 已阻塞付费试点
+        - 影响现有用户
+        - 有证据但尚未阻塞
+        - 探索性想法
+    validations:
+      required: true

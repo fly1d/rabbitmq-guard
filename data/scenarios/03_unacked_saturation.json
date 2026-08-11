@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "scenario": {
+    "id": "unacked_saturation",
+    "kind": "synthetic",
+    "title": "未确认消息饱和",
+    "description": "大部分消息已经交付给消费者，但长时间没有确认。",
+    "expected_findings": ["queue.unacked_saturation"],
+    "sources": [
+      "https://www.rabbitmq.com/docs/confirms",
+      "https://www.rabbitmq.com/docs/consumers"
+    ]
+  },
+  "capture": {"kind": "synthetic-baseline"},
+  "cluster": {"name": "lab", "connections": 14, "channels": 32, "queues": 1, "consumers": 8},
+  "nodes": [
+    {"name": "rabbit@node1", "running": true, "mem_alarm": false, "disk_free_alarm": false, "fd_used": 280, "fd_total": 4096}
+  ],
+  "queues": [
+    {
+      "vhost": "/",
+      "name": "payment.capture",
+      "type": "quorum",
+      "state": "running",
+      "messages": 8700,
+      "messages_ready": 200,
+      "messages_unacknowledged": 8500,
+      "consumers": 8,
+      "consumer_capacity": 0.91,
+      "publish_rate": 25.0,
+      "deliver_rate": 7.0,
+      "ack_rate": 4.0,
+      "redeliver_rate": 0.2,
+      "members": ["rabbit@node1", "rabbit@node2", "rabbit@node3"],
+      "online_members": ["rabbit@node1", "rabbit@node2", "rabbit@node3"],
+      "leader": "rabbit@node2"
+    }
+  ],
+  "connections": [],
+  "activity": {"connection_open_rate": 0.2}
+}

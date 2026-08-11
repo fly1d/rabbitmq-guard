@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "scenario": {
+    "id": "connection_churn",
+    "kind": "synthetic",
+    "title": "连接抖动与 channel 泄漏信号",
+    "description": "连接创建速率很高，且平均每个连接的 channel 数量超过启发式阈值。",
+    "expected_findings": ["cluster.connection_churn", "cluster.channel_pressure"],
+    "sources": ["https://www.rabbitmq.com/docs/monitoring"]
+  },
+  "capture": {"kind": "synthetic-baseline"},
+  "cluster": {"name": "lab", "connections": 24, "channels": 2400, "queues": 1, "consumers": 6},
+  "nodes": [
+    {"name": "rabbit@node1", "running": true, "mem_alarm": false, "disk_free_alarm": false, "fd_used": 720, "fd_total": 4096}
+  ],
+  "queues": [
+    {
+      "vhost": "/",
+      "name": "api.tasks",
+      "type": "classic",
+      "state": "running",
+      "messages": 20,
+      "messages_ready": 8,
+      "messages_unacknowledged": 12,
+      "consumers": 6,
+      "consumer_capacity": 1.0,
+      "publish_rate": 45.0,
+      "deliver_rate": 45.0,
+      "ack_rate": 44.8,
+      "redeliver_rate": 0.1
+    }
+  ],
+  "connections": [],
+  "activity": {"connection_open_rate": 80.0}
+}

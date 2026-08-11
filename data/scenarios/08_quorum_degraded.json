@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "scenario": {
+    "id": "quorum_degraded",
+    "kind": "synthetic",
+    "title": "Quorum queue 丢失一个成员但仍可用",
+    "description": "三成员队列仍有两个成员在线，保有多数但失去继续容错的余量。",
+    "expected_findings": ["queue.quorum_degraded"],
+    "sources": ["https://www.rabbitmq.com/docs/quorum-queues"]
+  },
+  "capture": {"kind": "synthetic-baseline"},
+  "cluster": {"name": "lab", "connections": 14, "channels": 42, "queues": 1, "consumers": 4},
+  "nodes": [
+    {"name": "rabbit@node1", "running": true, "mem_alarm": false, "disk_free_alarm": false, "fd_used": 250, "fd_total": 4096},
+    {"name": "rabbit@node2", "running": true, "mem_alarm": false, "disk_free_alarm": false, "fd_used": 260, "fd_total": 4096},
+    {"name": "rabbit@node3", "running": false, "mem_alarm": false, "disk_free_alarm": false, "fd_used": 0, "fd_total": 4096}
+  ],
+  "queues": [
+    {
+      "vhost": "/",
+      "name": "orders",
+      "type": "quorum",
+      "state": "running",
+      "messages": 80,
+      "messages_ready": 40,
+      "messages_unacknowledged": 40,
+      "consumers": 4,
+      "consumer_capacity": 0.96,
+      "publish_rate": 75.0,
+      "deliver_rate": 74.0,
+      "ack_rate": 73.8,
+      "redeliver_rate": 0.1,
+      "members": ["rabbit@node1", "rabbit@node2", "rabbit@node3"],
+      "online_members": ["rabbit@node1", "rabbit@node2"],
+      "leader": "rabbit@node2"
+    }
+  ],
+  "connections": [],
+  "activity": {"connection_open_rate": 0.1}
+}
