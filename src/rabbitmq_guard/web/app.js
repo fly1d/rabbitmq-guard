@@ -2,6 +2,8 @@ const state = {
   scenarios: [],
   selectedFile: null,
   currentRunId: null,
+  baselineRunId: null,
+  historyRuns: [],
   liveEnabled: false,
 };
 
@@ -40,6 +42,15 @@ const elements = {
   historyList: document.querySelector("#history-list"),
   refreshHistory: document.querySelector("#refresh-history"),
   downloadReport: document.querySelector("#download-report"),
+  comparisonSection: document.querySelector("#comparison-section"),
+  comparisonTitle: document.querySelector("#comparison-title"),
+  comparisonMeta: document.querySelector("#comparison-meta"),
+  comparisonResolved: document.querySelector("#comparison-resolved"),
+  comparisonNew: document.querySelector("#comparison-new"),
+  comparisonPersisting: document.querySelector("#comparison-persisting"),
+  comparisonMetrics: document.querySelector("#comparison-metrics"),
+  downloadComparison: document.querySelector("#download-comparison"),
+  clearBaseline: document.querySelector("#clear-baseline"),
   toast: document.querySelector("#toast"),
 };
 
@@ -48,6 +59,13 @@ const severityNames = {
   high: "高",
   medium: "中",
   low: "低",
+};
+
+const outcomeNames = {
+  improved: "风险下降",
+  worsened: "风险上升",
+  mixed: "风险结构变化",
+  unchanged: "风险无变化",
 };
 
 function escapeHtml(value) {
@@ -124,9 +142,49 @@ function renderFinding(finding) {
     </article>`;
 }
 
+function hideComparison() {
+  elements.comparisonSection.classList.add("hidden");
+  elements.downloadComparison.href = "#";
+}
+
+function formatDelta(value) {
+  const number = Number(value || 0);
+  return number > 0 ? `+${number}` : String(number);
+}
+
+function renderComparison(comparison) {
+  const outcome = comparison.outcome || "unchanged";
+  elements.comparisonSection.className = `comparison-band outcome-${outcome}`;
+  elements.comparisonTitle.textContent = outcomeNames[outcome] || outcome;
+  elements.comparisonMeta.textContent = `${comparison.baseline.label} → ${comparison.current.label} · 风险分 ${comparison.baseline.risk_score} → ${comparison.current.risk_score}`;
+  elements.comparisonResolved.textContent = comparison.summary.resolved;
+  elements.comparisonNew.textContent = comparison.summary.new;
+  elements.comparisonPersisting.textContent = comparison.summary.persisting;
+  elements.comparisonMetrics.innerHTML = comparison.metric_changes
+    .map(
+      (metric) => `
+        <div>
+          <span>${escapeHtml(metric.label)}</span>
+          <strong>${escapeHtml(metric.baseline)} → ${escapeHtml(metric.current)}</strong>
+          <small>${escapeHtml(formatDelta(metric.delta))}</small>
+        </div>`,
+    )
+    .join("");
+  elements.downloadComparison.href = `/api/compare/${comparison.baseline.id}/${comparison.current.id}/report.md`;
+}
+
+async function refreshComparison() {
+  if (!state.baselineRunId || !state.currentRunId || state.baselineRunId === state.currentRunId) {
+    hideComparison();
+    return;
+  }
+  renderComparison(await api(`/api/compare/${state.baselineRunId}/${state.currentRunId}`));
+}
+
 function renderResult(result, kicker = "诊断完成") {
   const { summary, cluster, findings, run } = result;
   state.currentRunId = run?.id || null;
+  hideComparison();
   elements.resultKicker.textContent = kicker;
   elements.resultTitle.textContent = cluster.name || "unknown";
   const timestamp = run?.created_at ? new Date(run.created_at).toLocaleString("zh-CN", { hour12: false }) : "未保存";
@@ -156,6 +214,10 @@ function renderResult(result, kicker = "诊断完成") {
 }
 
 function renderHistory(runs) {
+  state.historyRuns = runs;
+  if (state.baselineRunId && !runs.some((run) => run.id === state.baselineRunId)) {
+    state.baselineRunId = null;
+  }
   if (!runs.length) {
     elements.historyList.innerHTML = '<div class="empty-state">暂无记录</div>';
     return;
@@ -163,19 +225,36 @@ function renderHistory(runs) {
   elements.historyList.innerHTML = runs
     .map((run) => {
       const date = new Date(run.created_at).toLocaleString("zh-CN", { hour12: false });
+      const isBaseline = run.id === state.baselineRunId;
       return `
-        <button class="history-item ${run.id === state.currentRunId ? "active" : ""}" type="button" data-id="${escapeHtml(run.id)}">
-          <span class="history-status ${escapeHtml(run.status)}" aria-hidden="true"></span>
-          <strong>${escapeHtml(run.label)}</strong>
-          <span>${escapeHtml(run.cluster_name)} · ${run.total} 项 · ${escapeHtml(date)}</span>
-        </button>`;
+        <div class="history-row ${isBaseline ? "baseline" : ""}">
+          <button class="history-item ${run.id === state.currentRunId ? "active" : ""}" type="button" data-id="${escapeHtml(run.id)}">
+            <span class="history-status ${escapeHtml(run.status)}" aria-hidden="true"></span>
+            <strong>${escapeHtml(run.label)}</strong>
+            <span>${escapeHtml(run.cluster_name)} · ${run.total} 项 · ${escapeHtml(date)}</span>
+          </button>
+          <button class="baseline-button" type="button" data-baseline-id="${escapeHtml(run.id)}" aria-pressed="${String(isBaseline)}" title="${isBaseline ? "取消对比基线" : "设为对比基线"}">基线</button>
+        </div>`;
     })
     .join("");
   elements.historyList.querySelectorAll(".history-item").forEach((item) => {
     item.addEventListener("click", async () => {
       try {
         renderResult(await api(`/api/runs/${item.dataset.id}`), "历史诊断");
+        await refreshComparison();
       } catch (error) {
+        showToast(error.message);
+      }
+    });
+  });
+  elements.historyList.querySelectorAll(".baseline-button").forEach((button) => {
+    button.addEventListener("click", async () => {
+      state.baselineRunId = state.baselineRunId === button.dataset.baselineId ? null : button.dataset.baselineId;
+      renderHistory(state.historyRuns);
+      try {
+        await refreshComparison();
+      } catch (error) {
+        hideComparison();
         showToast(error.message);
       }
     });
@@ -195,7 +274,10 @@ async function runScenario(persist = true) {
       body: JSON.stringify({ id: elements.scenarioSelect.value, persist }),
     });
     renderResult(result, persist ? "演示诊断" : "演示预览");
-    if (persist) await refreshHistory();
+    if (persist) {
+      await refreshHistory();
+      await refreshComparison();
+    }
   } catch (error) {
     showToast(error.message);
   } finally {
@@ -214,6 +296,7 @@ async function analyzeFile() {
     });
     renderResult(result, "快照诊断");
     await refreshHistory();
+    await refreshComparison();
   } catch (error) {
     showToast(error.message);
   } finally {
@@ -235,6 +318,7 @@ async function runLive() {
     elements.livePassword.value = "";
     renderResult(result, "实时诊断");
     await refreshHistory();
+    await refreshComparison();
   } catch (error) {
     showToast(error.message);
   } finally {
@@ -274,5 +358,10 @@ elements.snapshotFile.addEventListener("change", () => {
 elements.analyzeFile.addEventListener("click", analyzeFile);
 elements.runLive.addEventListener("click", runLive);
 elements.refreshHistory.addEventListener("click", () => refreshHistory().catch((error) => showToast(error.message)));
+elements.clearBaseline.addEventListener("click", () => {
+  state.baselineRunId = null;
+  renderHistory(state.historyRuns);
+  hideComparison();
+});
 
 initialize();

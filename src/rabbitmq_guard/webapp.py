@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, urlparse
 
 from . import __version__
 from .collector import CollectionError, ManagementApiCollector
+from .comparison import compare_runs, render_comparison_markdown
 from .diagnostics import diagnose, render_markdown
 from .generator import load_cases
 from .models import Finding
@@ -169,6 +170,39 @@ def make_handler(context: AppContext):
                 except ValueError:
                     limit = 30
                 self._send_json({"runs": context.store.list(limit)})
+                return
+            if path.startswith("/api/compare/"):
+                parts = path[len("/api/compare/") :].split("/")
+                wants_report = len(parts) == 3 and parts[2] == "report.md"
+                if len(parts) not in {2, 3} or (len(parts) == 3 and not wants_report):
+                    self._send_error("对比路径无效", HTTPStatus.NOT_FOUND)
+                    return
+                baseline = context.store.get(parts[0])
+                current = context.store.get(parts[1])
+                if baseline is None or current is None:
+                    self._send_error("诊断记录不存在", HTTPStatus.NOT_FOUND)
+                    return
+                try:
+                    comparison = compare_runs(baseline, current)
+                except ValueError as exc:
+                    self._send_error(str(exc))
+                    return
+                if wants_report:
+                    report = render_comparison_markdown(comparison).encode("utf-8")
+                    self.send_response(HTTPStatus.OK)
+                    self.send_header("Content-Type", "text/markdown; charset=utf-8")
+                    self.send_header(
+                        "Content-Disposition",
+                        'attachment; filename="rabbitmq-guard-comparison-{}-{}.md"'.format(
+                            parts[0], parts[1]
+                        ),
+                    )
+                    self.send_header("Content-Length", str(len(report)))
+                    self.send_header("X-Content-Type-Options", "nosniff")
+                    self.end_headers()
+                    self.wfile.write(report)
+                    return
+                self._send_json(comparison)
                 return
             if path.startswith("/api/runs/"):
                 suffix = path[len("/api/runs/") :]

@@ -4,8 +4,13 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-11
+
 ### Added
 
+- 同一集群的历史诊断基线与复测对比。
+- 新增、已解决、持续风险及加权风险分变化。
+- 可下载的 Markdown 整改复测报告。
 - GitHub Pull Request、Issue、CODEOWNERS 和维护规范。
 - Python 3.9/3.12 单元测试与本地产品冒烟测试。
 - 每周和手动 RabbitMQ 4.1 实时采集集成测试。
