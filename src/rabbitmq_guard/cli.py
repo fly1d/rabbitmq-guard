@@ -1,9 +1,11 @@
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence
 
+from . import __version__
 from .collector import CollectionError, ManagementApiCollector
 from .delivery import (
     verify_delivery_bundle,
@@ -16,9 +18,33 @@ from .sanitizer import DEFAULT_KEY_ENV, redaction_key_from_env, sanitize_snapsho
 from .webapp import serve
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CASE_DIR = PROJECT_ROOT / "data" / "scenarios"
-DEFAULT_DATABASE = PROJECT_ROOT / "var" / "rabbitmq-guard.db"
+PACKAGE_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = PACKAGE_ROOT.parents[1]
+DEFAULT_CASE_DIR = PACKAGE_ROOT / "scenarios"
+
+
+def _default_database() -> Path:
+    override = os.environ.get("RABBITMQ_GUARD_DATA_DIR")
+    if override:
+        data_dir = Path(override).expanduser()
+    elif (PROJECT_ROOT / ".git").is_dir():
+        data_dir = PROJECT_ROOT / "var"
+    elif os.name == "nt":
+        data_dir = Path(
+            os.environ.get("LOCALAPPDATA")
+            or os.environ.get("APPDATA")
+            or Path.home() / "AppData" / "Local"
+        ) / "RabbitMQ Guard"
+    elif sys.platform == "darwin":
+        data_dir = Path.home() / "Library" / "Application Support" / "RabbitMQ Guard"
+    else:
+        data_dir = Path(
+            os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share"
+        ) / "rabbitmq-guard"
+    return data_dir / "rabbitmq-guard.db"
+
+
+DEFAULT_DATABASE = _default_database()
 
 
 def _load_json(path: Path) -> Dict[str, Any]:
@@ -48,12 +74,23 @@ def _render(findings: Any, output_format: str) -> str:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="rabbitmq-guard",
-        description="基于证据的 RabbitMQ 只读诊断 MVP",
+        description="基于证据的 RabbitMQ 只读诊断工具",
+    )
+    parser.add_argument(
+        "--version", action="version", version="%(prog)s {}".format(__version__)
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     cases_parser = subparsers.add_parser("cases", help="列出内置合成案例")
     cases_parser.add_argument("--case-dir", type=Path, default=DEFAULT_CASE_DIR)
+
+    demo_parser = subparsers.add_parser("demo", help="运行一个内置合成案例")
+    demo_parser.add_argument("case")
+    demo_parser.add_argument("--case-dir", type=Path, default=DEFAULT_CASE_DIR)
+    demo_parser.add_argument(
+        "--format", choices=("text", "json", "markdown"), default="text"
+    )
+    demo_parser.add_argument("--output", type=Path)
 
     diagnose_parser = subparsers.add_parser("diagnose", help="诊断一个标准化 JSON 快照")
     diagnose_parser.add_argument("snapshot", type=Path)
@@ -143,6 +180,17 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
                         scenario.get("title", ""),
                     )
                 )
+            return
+
+        if args.command == "demo":
+            selected = None
+            for case in load_cases(args.case_dir):
+                if str((case.get("scenario") or {}).get("id", "")) == args.case:
+                    selected = case
+                    break
+            if selected is None:
+                raise ValueError("内置案例不存在: {}".format(args.case))
+            _write_output(_render(diagnose(selected), args.format), args.output)
             return
 
         if args.command == "diagnose":

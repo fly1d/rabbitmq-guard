@@ -1,8 +1,28 @@
 # RabbitMQ Guard
 
 [![CI](https://github.com/fly1d/rabbitmq-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/fly1d/rabbitmq-guard/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/fly1d/rabbitmq-guard)](https://github.com/fly1d/rabbitmq-guard/releases/latest)
+[![License](https://img.shields.io/github/license/fly1d/rabbitmq-guard)](LICENSE)
 
-一个案例驱动、完全只读的 RabbitMQ 诊断 MVP。它把 Management API 数据标准化后，通过透明规则输出“证据、判断、建议和官方依据”。当前不使用 LLM，也不执行任何修复动作。
+一个本地运行、完全只读的 RabbitMQ 诊断工具。它把 Management API 数据标准化后，通过透明规则输出“证据、判断、建议和官方依据”。当前不使用 LLM，也不执行任何修复动作。
+
+## 14 天付费诊断试点
+
+面向自建 RabbitMQ、缺少专职消息中间件 SRE、最近遇到过积压、重复投递、资源告警或集群维护风险的团队。
+
+**创始试点报价：人民币 1,999 元 / 14 天 / 1 个集群，正式开始前付款。**
+
+交付内容：
+
+1. 一次客户本机生成的脱敏基线交付包审查。
+2. 一份带证据、影响、排查顺序和 RabbitMQ 官方依据的风险报告。
+3. 一次 60 分钟技术复盘与整改建议。
+4. 一次整改后复测，以及已校验基线/复测包生成的差异报告。
+5. 按约定删除试点期间收到的客户伪名化数据。
+
+不包含 24/7 值班、自动修复、代改生产配置、无限咨询、事故赔付或可用性担保。试点开始前需要另行确认付款、开票、私密沟通渠道、数据保留和服务约定。
+
+[提交 14 天付费试点申请](https://github.com/fly1d/rabbitmq-guard/issues/new?template=paid_pilot.yml)。申请表是公开 Issue，不要填写公司内部名称、域名、IP、队列名、日志、快照、凭据或其他客户数据。
 
 ## 已包含
 
@@ -18,9 +38,22 @@
 
 案例依据和限制见 [docs/case-catalog.md](docs/case-catalog.md)。
 
-## 直接试用
+## 安装与直接试用
 
-无需安装第三方 Python 包：
+从 [GitHub Releases](https://github.com/fly1d/rabbitmq-guard/releases/latest) 下载 wheel 和 `SHA256SUMS`，先校验文件，再安装：
+
+```bash
+shasum -a 256 -c SHA256SUMS
+python3 -m pip install ./rabbitmq_guard-0.6.0-py3-none-any.whl
+
+# 不需要 RabbitMQ，直接运行内置合成案例
+rabbitmq-guard cases
+rabbitmq-guard demo memory_alarm
+```
+
+Release 同时提供 GitHub build provenance attestation。软件按 Apache-2.0 开源；付费的是有明确范围的诊断与复测服务，不是运行本地核心的许可证。
+
+从源码试用无需安装第三方 Python 包：
 
 ```bash
 export PYTHONPATH=src
@@ -29,11 +62,11 @@ export PYTHONPATH=src
 python3 -m rabbitmq_guard cases
 
 # 诊断内存告警案例
-python3 -m rabbitmq_guard diagnose data/scenarios/05_memory_alarm.json
+python3 -m rabbitmq_guard demo memory_alarm
 
 # 生成 Markdown 报告
-python3 -m rabbitmq_guard diagnose \
-  data/scenarios/04_redelivery_loop.json \
+python3 -m rabbitmq_guard demo \
+  redelivery_loop \
   --format markdown \
   --output report.md
 
@@ -43,7 +76,7 @@ python3 -m rabbitmq_guard generate \
   --output synthetic-dataset.jsonl
 ```
 
-也可以安装为本地命令：
+开发时也可以安装为 editable 命令：
 
 ```bash
 python3 -m pip install -e .
@@ -59,7 +92,7 @@ python3 -m rabbitmq_guard serve --enable-live
 
 打开 <http://127.0.0.1:8787>。工作台支持演示案例、JSON 快照上传、实时只读连接、历史诊断和 Markdown 报告下载。任意历史记录都可以设为基线；打开同一集群的另一条记录后，工作台会展示新增、已解决和持续风险，并生成整改复测报告。诊断记录保存在 `var/rabbitmq-guard.db`，实时连接密码只用于当次请求，不写入数据库。
 
-为了避免把带有网络访问能力的接口暴露出去，启用实时连接时服务只允许绑定回环地址。当前版本是本地付费试点工具，不应直接作为公网 SaaS 部署。
+为了避免把带有网络访问能力的接口暴露出去，启用实时连接时服务只允许绑定回环地址。当前版本是本地付费试点工具，不应直接作为公网 SaaS 部署。正式安装默认把历史数据库写到操作系统的用户数据目录；可用 `RABBITMQ_GUARD_DATA_DIR` 指定其他客户批准的位置。
 
 ## 脱敏后再交付快照
 
@@ -178,3 +211,5 @@ make smoke
 - 稳定脱敏输出可跨时间关联，不能当作匿名数据公开发布。
 
 付费试点的客户画像、交付范围、价格假设和停止条件见 [docs/paid-pilot.md](docs/paid-pilot.md)。
+
+社区问题、私密安全报告和付费服务的边界见 [SUPPORT.md](SUPPORT.md)。

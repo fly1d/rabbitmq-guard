@@ -2,6 +2,8 @@
 
 RabbitMQ Guard 使用短分支、Pull Request 和自动化检查维护。`main` 应当始终可运行。
 
+代码贡献按 Apache-2.0 许可进入项目。提交 Pull Request 表示你有权提交该贡献并同意按仓库许可证提供它。
+
 ## 基本流程
 
 1. 从最新 `main` 创建短期分支，分支名使用 `codex/`、`fix/`、`feature/` 或 `docs/` 前缀。

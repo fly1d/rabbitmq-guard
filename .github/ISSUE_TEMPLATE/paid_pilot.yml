@@ -1,0 +1,83 @@
+name: 14 天付费试点申请
+description: 申请人民币 1,999 元、单集群的创始客户试点
+title: "[Pilot] 14 天 RabbitMQ 诊断试点"
+labels: [paid-pilot]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        这是公开 Issue。不要填写公司名称、客户名称、内部域名、IP、队列名、日志、快照、交付包、密码、密钥、令牌或其他敏感信息。
+  - type: checkboxes
+    id: fit
+    attributes:
+      label: 基本匹配
+      options:
+        - label: 我们自建 RabbitMQ，且没有现成的 24/7 托管支持
+          required: true
+        - label: 我们接受工具只读、不自动修改生产配置
+          required: true
+        - label: 我不会在此公开 Issue 上传客户数据或凭据
+          required: true
+  - type: dropdown
+    id: cluster_count
+    attributes:
+      label: 生产集群数量
+      options:
+        - "1"
+        - 2-3
+        - 4-10
+        - 10 个以上
+    validations:
+      required: true
+  - type: dropdown
+    id: recent_problem
+    attributes:
+      label: 最近六个月最主要的问题
+      options:
+        - 消息积压或无人消费
+        - 重复投递或未确认消息
+        - 内存、磁盘或文件描述符告警
+        - Quorum queue 或节点可用性
+        - 连接抖动或 channel 压力
+        - 希望做上线前基线审查
+    validations:
+      required: true
+  - type: dropdown
+    id: diagnosis_time
+    attributes:
+      label: 最近一次相关排查耗时
+      options:
+        - 少于 30 分钟
+        - 30-120 分钟
+        - 2-8 小时
+        - 超过 8 小时
+        - 尚无事故，只做预防性审查
+    validations:
+      required: true
+  - type: dropdown
+    id: access
+    attributes:
+      label: 可接受的只读输入方式
+      options:
+        - 客户本机生成脱敏交付包
+        - 经审批的只读 Management API
+        - 需要先完成内部安全审批
+    validations:
+      required: true
+  - type: checkboxes
+    id: commercial
+    attributes:
+      label: 商业确认
+      options:
+        - label: 我了解创始试点报价为人民币 1,999 元 / 14 天 / 1 个集群，正式开始前付款
+          required: true
+        - label: 我是预算决策人，或能邀请预算决策人参加首次沟通
+          required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: 希望在 14 天后得到什么结果？
+      description: 只描述业务结果，不要填写任何内部标识或粘贴日志。
+      placeholder: 例如：确认积压原因的排查顺序，并验证整改后风险下降。
+    validations:
+      required: true

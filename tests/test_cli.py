@@ -8,15 +8,40 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
+from rabbitmq_guard import __version__
 from rabbitmq_guard.cli import main
 from rabbitmq_guard.delivery import write_delivery_bundle
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CASE_DIR = ROOT / "data" / "scenarios"
+CASE_DIR = ROOT / "src" / "rabbitmq_guard" / "scenarios"
 
 
 class CliTests(unittest.TestCase):
+    def test_version_flag_reports_installed_version(self) -> None:
+        with redirect_stdout(StringIO()) as stdout, self.assertRaisesRegex(
+            SystemExit, "0"
+        ):
+            main(["--version"])
+
+        self.assertEqual(
+            "rabbitmq-guard {}\n".format(__version__), stdout.getvalue()
+        )
+
+    def test_demo_runs_a_bundled_case(self) -> None:
+        with redirect_stdout(StringIO()) as stdout:
+            main(["demo", "memory_alarm"])
+
+        self.assertIn("节点触发内存告警", stdout.getvalue())
+
+    def test_demo_rejects_an_unknown_case(self) -> None:
+        with redirect_stderr(StringIO()) as stderr, self.assertRaisesRegex(
+            SystemExit, "2"
+        ):
+            main(["demo", "customer-production"])
+
+        self.assertIn("内置案例不存在", stderr.getvalue())
+
     def test_sanitize_command_writes_diagnostic_snapshot(self) -> None:
         source = CASE_DIR / "09_quorum_lost.json"
         with tempfile.TemporaryDirectory() as temp_dir:

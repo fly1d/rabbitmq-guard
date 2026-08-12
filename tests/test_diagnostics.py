@@ -11,7 +11,7 @@ from rabbitmq_guard.sanitizer import sanitize_snapshot
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CASE_DIR = ROOT / "data" / "scenarios"
+CASE_DIR = ROOT / "src" / "rabbitmq_guard" / "scenarios"
 
 
 class DiagnosticsTests(unittest.TestCase):

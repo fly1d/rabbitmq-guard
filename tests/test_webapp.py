@@ -12,7 +12,7 @@ from rabbitmq_guard.comparison import compare_runs, render_comparison_markdown
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CASE_DIR = ROOT / "data" / "scenarios"
+CASE_DIR = ROOT / "src" / "rabbitmq_guard" / "scenarios"
 
 
 class RunStoreTests(unittest.TestCase):

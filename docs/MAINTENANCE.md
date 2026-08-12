@@ -25,6 +25,8 @@
 - RabbitMQ 4.1 Management API 实时采集
 - 制造无人消费积压并验证诊断结果
 
+正式标签发布还必须通过 wheel/sdist 内容检查、仓库外安装冒烟、SHA-256 生成和 GitHub 构建来源证明。完整流程见 [RELEASE.md](RELEASE.md)。
+
 ## 何时增加流程
 
 只有出现相应风险时才增加：

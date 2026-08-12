@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-12
+
+### Added
+
+- 可从 GitHub Release 安装的 wheel 和 sdist，包含工作台资源与 11 个合成案例。
+- `demo` 命令，安装后无需源码目录即可运行内置案例。
+- Python 3.9/3.12 wheel 安装冒烟测试，以及带 SHA-256 和构建来源证明的 Release 流程。
+- Apache-2.0 许可证、支持边界和不收集敏感信息的 14 天付费试点申请入口。
+
+### Changed
+
+- 正式安装的工作台默认使用操作系统用户数据目录，可通过 `RABBITMQ_GUARD_DATA_DIR` 覆盖。
+
 ## [0.5.0] - 2026-08-12
 
 ### Added
