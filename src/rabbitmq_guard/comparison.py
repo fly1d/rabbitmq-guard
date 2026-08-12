@@ -168,26 +168,52 @@ def render_comparison_markdown(comparison: Dict[str, Any]) -> str:
         "- 复测：{}（{}）".format(current["label"], current["created_at"]),
         "- 结论：{}".format(outcome_names[comparison["outcome"]]),
         "",
-        "## 风险变化",
-        "",
-        "| 指标 | 基线 | 复测 | 变化 |",
-        "| --- | ---: | ---: | ---: |",
-        "| 加权风险分 | {} | {} | {:+d} |".format(
-            baseline["risk_score"], current["risk_score"], summary["risk_score_delta"]
-        ),
-        "| 风险总数 | {} | {} | {:+d} |".format(
-            baseline["total"], current["total"], current["total"] - baseline["total"]
-        ),
-        "",
-        "- 新增风险：{}".format(summary["new"]),
-        "- 已解决风险：{}".format(summary["resolved"]),
-        "- 持续风险：{}".format(summary["persisting"]),
-        "",
-        "## 集群指标变化",
-        "",
-        "| 指标 | 基线 | 复测 | 变化 |",
-        "| --- | ---: | ---: | ---: |",
     ]
+    delivery_bundles = comparison.get("delivery_bundles")
+    if delivery_bundles:
+        lines.extend(
+            [
+                "## 已验证输入",
+                "",
+                "- 基线交付包 SHA-256：`{}`".format(
+                    delivery_bundles["baseline"]["sha256"]
+                ),
+                "- 复测交付包 SHA-256：`{}`".format(
+                    delivery_bundles["current"]["sha256"]
+                ),
+                "- 生成器版本：v{}".format(
+                    delivery_bundles["baseline"]["generator_version"]
+                ),
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "## 风险变化",
+            "",
+            "| 指标 | 基线 | 复测 | 变化 |",
+            "| --- | ---: | ---: | ---: |",
+            "| 加权风险分 | {} | {} | {:+d} |".format(
+                baseline["risk_score"],
+                current["risk_score"],
+                summary["risk_score_delta"],
+            ),
+            "| 风险总数 | {} | {} | {:+d} |".format(
+                baseline["total"],
+                current["total"],
+                current["total"] - baseline["total"],
+            ),
+            "",
+            "- 新增风险：{}".format(summary["new"]),
+            "- 已解决风险：{}".format(summary["resolved"]),
+            "- 持续风险：{}".format(summary["persisting"]),
+            "",
+            "## 集群指标变化",
+            "",
+            "| 指标 | 基线 | 复测 | 变化 |",
+            "| --- | ---: | ---: | ---: |",
+        ]
+    )
     for metric in comparison["metric_changes"]:
         lines.append(
             "| {} | {} | {} | {:+g} |".format(

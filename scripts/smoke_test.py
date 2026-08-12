@@ -11,7 +11,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from rabbitmq_guard.webapp import create_server  # noqa: E402
-from rabbitmq_guard.delivery import verify_delivery_bundle, write_delivery_bundle  # noqa: E402
+from rabbitmq_guard.delivery import (  # noqa: E402
+    verify_delivery_bundle,
+    write_delivery_bundle,
+    write_delivery_comparison,
+)
 from rabbitmq_guard.sanitizer import sanitize_snapshot  # noqa: E402
 
 
@@ -47,7 +51,7 @@ def main():
             assert 'id="result-privacy"' in html
 
             _, health = request_json(base_url, "/api/health")
-            assert health == {"ok": True, "version": "0.4.0", "live_enabled": False}
+            assert health == {"ok": True, "version": "0.5.0", "live_enabled": False}
 
             _, result = request_json(
                 base_url,
@@ -90,6 +94,34 @@ def main():
             verified = verify_delivery_bundle(delivery_path)
             assert verified["bundle_sha256"] == delivery["bundle_sha256"]
             assert "ledger.commands" not in delivery_path.read_bytes().decode("latin-1")
+
+            baseline_snapshot = json.loads(
+                (ROOT / "data" / "scenarios" / "05_memory_alarm.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            current_snapshot = json.loads(
+                (ROOT / "data" / "scenarios" / "00_healthy_baseline.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            baseline_snapshot["capture"]["captured_at"] = "2026-08-01T08:00:00Z"
+            current_snapshot["capture"]["captured_at"] = "2026-08-08T08:00:00Z"
+            baseline_delivery = Path(temp_dir) / "baseline-delivery.zip"
+            current_delivery = Path(temp_dir) / "current-delivery.zip"
+            comparison_output = Path(temp_dir) / "delivery-comparison.md"
+            write_delivery_bundle(
+                baseline_snapshot, "smoke-test-key-2026", baseline_delivery
+            )
+            write_delivery_bundle(
+                current_snapshot, "smoke-test-key-2026", current_delivery
+            )
+            delivery_comparison = write_delivery_comparison(
+                baseline_delivery, current_delivery, comparison_output
+            )
+            assert delivery_comparison["outcome"] == "improved"
+            assert delivery_comparison["summary"]["resolved"] == 1
+            assert "已验证输入" in comparison_output.read_text(encoding="utf-8")
 
             _, healthy = request_json(
                 base_url,

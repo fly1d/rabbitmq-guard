@@ -60,6 +60,30 @@ python3 -m rabbitmq_guard verify-delivery rabbitmq-guard-delivery.zip
 
 通过只表示文件符合当前 RabbitMQ Guard 格式且内部一致。攻击者如果可以同时替换 ZIP 和独立渠道中的 SHA-256，仍可伪造整套内容；需要不可抵赖来源时，应在组织现有签名或制品系统中对整个 ZIP 进行签名。
 
+## 整改复测
+
+14 天试点开始时应固定 RabbitMQ Guard 版本，并在基线和复测中使用同一脱敏密钥。客户整改后重新运行 `deliver`，接收方先分别核对两个 ZIP 的独立渠道 SHA-256，再运行：
+
+```bash
+python3 -m rabbitmq_guard compare-deliveries \
+  baseline-delivery.zip \
+  followup-delivery.zip \
+  --output remediation-review.md
+```
+
+比较命令会在发布报告前对两个包执行完整 `verify-delivery` 级别校验，并确认：
+
+1. 两个 ZIP 不是同一个交付包。
+2. 脱敏集群伪名一致，表明它们由同一密钥映射到同一集群。
+3. 同时存在采集时间时，复测时间不早于基线。
+4. 输出文件不存在，发布过程不会覆盖已有报告。
+
+Markdown 报告包含两个输入 ZIP 的 SHA-256，但使用固定的“客户基线交付包”和“客户复测交付包”标签，不记录可能含客户标识的本地文件名。使用 `--format json` 可以输出同样的机器可读比较结构。
+
+集群伪名一致只能证明两个包具有一致的脱敏映射，不能证明客户身份或文件来源。采集时间由 RabbitMQ Guard 运行环境提供，不是可信时间戳。任一输入校验失败、集群不一致或时间倒置时，不会发布部分报告。
+
+比较结果仍包含伪名、风险证据、规模、速率和时间，属于客户伪名化数据。它必须沿用两个输入交付包的数据保留、访问控制和试点结束删除约定。
+
 ## 失败处理
 
 - 缺少密钥：不会连接 RabbitMQ，也不会创建输出文件。
@@ -67,5 +91,6 @@ python3 -m rabbitmq_guard verify-delivery rabbitmq-guard-delivery.zip
 - 脱敏、诊断或自校验失败：临时文件被删除，不发布目标文件。
 - 目标文件已存在：拒绝覆盖，使用新的明确文件名重试。
 - 接收方校验失败：不要打开或继续分发包内文件，要求客户重新生成并重新核对 SHA-256。
+- 复测比较失败：确认基线/复测顺序、固定版本和脱敏密钥，不要手工修改 ZIP 或报告绕过校验。
 
 交付包仍保留时间、规模、速率、资源状态、拓扑数量和同一密钥下的跨次关联，属于伪名化数据。处理要求见 [PRIVACY.md](PRIVACY.md)。

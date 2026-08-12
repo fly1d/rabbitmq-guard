@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from rabbitmq_guard.cli import main
+from rabbitmq_guard.delivery import write_delivery_bundle
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -222,6 +223,42 @@ class CliTests(unittest.TestCase):
 
             from_env.assert_not_called()
             self.assertEqual(b"existing", output.read_bytes())
+
+    def test_compare_deliveries_command_writes_verified_report(self) -> None:
+        baseline_snapshot = json.loads(
+            (CASE_DIR / "05_memory_alarm.json").read_text(encoding="utf-8")
+        )
+        current_snapshot = json.loads(
+            (CASE_DIR / "00_healthy_baseline.json").read_text(encoding="utf-8")
+        )
+        baseline_snapshot["capture"]["captured_at"] = "2026-08-01T08:00:00Z"
+        current_snapshot["capture"]["captured_at"] = "2026-08-08T08:00:00Z"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            baseline = Path(temp_dir) / "baseline.zip"
+            current = Path(temp_dir) / "current.zip"
+            output = Path(temp_dir) / "comparison.md"
+            write_delivery_bundle(
+                baseline_snapshot, "correct-horse-battery-staple", baseline
+            )
+            write_delivery_bundle(
+                current_snapshot, "correct-horse-battery-staple", current
+            )
+            with redirect_stdout(StringIO()) as stdout:
+                main(
+                    [
+                        "compare-deliveries",
+                        str(baseline),
+                        str(current),
+                        "--output",
+                        str(output),
+                    ]
+                )
+
+            report = output.read_text(encoding="utf-8")
+
+        self.assertIn("整改复测报告", report)
+        self.assertIn("已解决风险：1", report)
+        self.assertIn("已校验交付包", stdout.getvalue())
 
 
 if __name__ == "__main__":
