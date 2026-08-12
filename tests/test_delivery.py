@@ -22,7 +22,7 @@ from rabbitmq_guard.delivery import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CASE_DIR = ROOT / "data" / "scenarios"
+CASE_DIR = ROOT / "src" / "rabbitmq_guard" / "scenarios"
 KEY = "correct-horse-battery-staple"
 
 

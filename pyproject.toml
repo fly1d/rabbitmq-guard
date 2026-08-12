@@ -1,13 +1,33 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "rabbitmq-guard"
-version = "0.5.0"
+version = "0.6.0"
 description = "Evidence-based, read-only RabbitMQ diagnostics"
+readme = "README.md"
 requires-python = ">=3.9"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+keywords = ["rabbitmq", "diagnostics", "operations", "sre"]
 dependencies = []
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: System :: Monitoring",
+]
+
+[project.urls]
+Homepage = "https://github.com/fly1d/rabbitmq-guard"
+Documentation = "https://github.com/fly1d/rabbitmq-guard#readme"
+Issues = "https://github.com/fly1d/rabbitmq-guard/issues"
+"Paid pilot" = "https://github.com/fly1d/rabbitmq-guard/issues/new?template=paid_pilot.yml"
 
 [project.scripts]
 rabbitmq-guard = "rabbitmq_guard.cli:main"
@@ -19,4 +39,4 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-rabbitmq_guard = ["web/*"]
+rabbitmq_guard = ["web/*", "scenarios/*.json"]

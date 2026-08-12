@@ -10,6 +10,7 @@ from urllib.request import Request, urlopen
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from rabbitmq_guard import __version__  # noqa: E402
 from rabbitmq_guard.webapp import create_server  # noqa: E402
 from rabbitmq_guard.delivery import (  # noqa: E402
     verify_delivery_bundle,
@@ -37,7 +38,7 @@ def main():
             "127.0.0.1",
             0,
             Path(temp_dir) / "smoke.db",
-            ROOT / "data" / "scenarios",
+            ROOT / "src" / "rabbitmq_guard" / "scenarios",
             live_enabled=False,
         )
         thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -51,7 +52,11 @@ def main():
             assert 'id="result-privacy"' in html
 
             _, health = request_json(base_url, "/api/health")
-            assert health == {"ok": True, "version": "0.5.0", "live_enabled": False}
+            assert health == {
+                "ok": True,
+                "version": __version__,
+                "live_enabled": False,
+            }
 
             _, result = request_json(
                 base_url,
@@ -68,7 +73,13 @@ def main():
             assert "集群：lab" in report
 
             raw_snapshot = json.loads(
-                (ROOT / "data" / "scenarios" / "09_quorum_lost.json").read_text(
+                (
+                    ROOT
+                    / "src"
+                    / "rabbitmq_guard"
+                    / "scenarios"
+                    / "09_quorum_lost.json"
+                ).read_text(
                     encoding="utf-8"
                 )
             )
@@ -96,12 +107,24 @@ def main():
             assert "ledger.commands" not in delivery_path.read_bytes().decode("latin-1")
 
             baseline_snapshot = json.loads(
-                (ROOT / "data" / "scenarios" / "05_memory_alarm.json").read_text(
+                (
+                    ROOT
+                    / "src"
+                    / "rabbitmq_guard"
+                    / "scenarios"
+                    / "05_memory_alarm.json"
+                ).read_text(
                     encoding="utf-8"
                 )
             )
             current_snapshot = json.loads(
-                (ROOT / "data" / "scenarios" / "00_healthy_baseline.json").read_text(
+                (
+                    ROOT
+                    / "src"
+                    / "rabbitmq_guard"
+                    / "scenarios"
+                    / "00_healthy_baseline.json"
+                ).read_text(
                     encoding="utf-8"
                 )
             )
