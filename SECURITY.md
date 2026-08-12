@@ -21,5 +21,6 @@ https://github.com/fly1d/rabbitmq-guard/security/advisories/new
 - `sanitize` 和 `collect --sanitize` 使用环境变量中的 HMAC 密钥生成稳定伪名，密钥不写入输出；至少使用 16 字节密钥，推荐使用 32 个随机字节并存入客户自己的密钥管理系统。
 - 脱敏输出保留时间、工作负载规模、速率和拓扑数量，且同一密钥生成的伪名可关联，因此属于伪名化数据而不是匿名数据。
 - `deliver` 只写入规范化脱敏 ZIP，拒绝覆盖已有文件；`verify-delivery` 校验固定条目、容器格式、哈希和内部诊断一致性，但不是数字签名或来源证明。
+- `compare-deliveries` 先完整校验两个交付包，再比较同一伪名集群和采集源；拒绝相同包、不同脱敏映射、采集时间倒置和覆盖已有报告。比较结果仍是伪名化客户数据；伪名一致与采集时间都不是物理集群身份或可信时间证明。
 
 脱敏威胁模型、残余风险和交付检查见 [docs/PRIVACY.md](docs/PRIVACY.md)，交付包格式见 [docs/DELIVERY.md](docs/DELIVERY.md)。

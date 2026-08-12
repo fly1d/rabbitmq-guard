@@ -14,8 +14,10 @@ from rabbitmq_guard.delivery import (
     REPORT_NAME,
     SNAPSHOT_NAME,
     _zip_bytes,
+    compare_delivery_bundles,
     verify_delivery_bundle,
     write_delivery_bundle,
+    write_delivery_comparison,
 )
 
 
@@ -29,6 +31,12 @@ class DeliveryTests(unittest.TestCase):
         return json.loads(
             (CASE_DIR / "09_quorum_lost.json").read_text(encoding="utf-8")
         )
+
+    def _case(self, name, captured_at):
+        snapshot = json.loads((CASE_DIR / name).read_text(encoding="utf-8"))
+        snapshot["capture"]["captured_at"] = captured_at
+        snapshot["capture"]["source"] = "https://mq.customer.internal:15672"
+        return snapshot
 
     def test_bundle_contains_only_sanitized_diagnostic_artifacts(self) -> None:
         snapshot = self._snapshot()
@@ -196,6 +204,117 @@ class DeliveryTests(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "使用相同版本校验"):
                 verify_delivery_bundle(changed)
+
+    def test_compare_verified_deliveries_writes_markdown_and_json(self) -> None:
+        baseline_snapshot = self._case(
+            "05_memory_alarm.json", "2026-08-01T08:00:00+00:00"
+        )
+        current_snapshot = self._case(
+            "00_healthy_baseline.json", "2026-08-08T08:00:00+00:00"
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            baseline = Path(temp_dir) / "customer-name-baseline.zip"
+            current = Path(temp_dir) / "customer-name-current.zip"
+            markdown = Path(temp_dir) / "comparison.md"
+            json_output = Path(temp_dir) / "comparison.json"
+            write_delivery_bundle(baseline_snapshot, KEY, baseline)
+            write_delivery_bundle(current_snapshot, KEY, current)
+
+            comparison = write_delivery_comparison(baseline, current, markdown)
+            json_comparison = write_delivery_comparison(
+                baseline, current, json_output, "json"
+            )
+            report = markdown.read_text(encoding="utf-8")
+            serialized = json.loads(json_output.read_text(encoding="utf-8"))
+
+        self.assertEqual("improved", comparison["outcome"])
+        self.assertEqual(1, comparison["summary"]["resolved"])
+        self.assertEqual(-8, comparison["summary"]["risk_score_delta"])
+        self.assertEqual(comparison, json_comparison)
+        self.assertEqual(comparison, serialized)
+        self.assertIn("已验证输入", report)
+        self.assertIn(
+            comparison["delivery_bundles"]["baseline"]["sha256"], report
+        )
+        self.assertNotIn("customer-name", report)
+        self.assertNotIn("mq.customer.internal", report)
+        self.assertNotIn("rabbit@node1", report)
+
+    def test_compare_rejects_same_bundle_other_identity_and_reversed_time(self) -> None:
+        baseline_snapshot = self._case(
+            "05_memory_alarm.json", "2026-08-08T08:00:00+00:00"
+        )
+        current_snapshot = self._case(
+            "00_healthy_baseline.json", "2026-08-01T08:00:00+00:00"
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            baseline = Path(temp_dir) / "baseline.zip"
+            current = Path(temp_dir) / "current.zip"
+            other_key = Path(temp_dir) / "other-key.zip"
+            other_source = Path(temp_dir) / "other-source.zip"
+            write_delivery_bundle(baseline_snapshot, KEY, baseline)
+            write_delivery_bundle(current_snapshot, KEY, current)
+            write_delivery_bundle(
+                current_snapshot, "another-correct-horse-battery-staple", other_key
+            )
+            current_snapshot["capture"]["source"] = "https://mq-backup.internal:15672"
+            write_delivery_bundle(current_snapshot, KEY, other_source)
+
+            with self.assertRaisesRegex(ValueError, "不能相同"):
+                compare_delivery_bundles(baseline, baseline)
+            with self.assertRaisesRegex(ValueError, "同一脱敏密钥"):
+                compare_delivery_bundles(baseline, other_key)
+            with self.assertRaisesRegex(ValueError, "同一脱敏采集源"):
+                compare_delivery_bundles(baseline, other_source)
+            with self.assertRaisesRegex(ValueError, "早于基线"):
+                compare_delivery_bundles(baseline, current)
+
+    def test_invalid_delivery_leaves_no_comparison_output(self) -> None:
+        baseline_snapshot = self._case(
+            "05_memory_alarm.json", "2026-08-01T08:00:00+00:00"
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            baseline = Path(temp_dir) / "baseline.zip"
+            invalid = Path(temp_dir) / "invalid.zip"
+            output = Path(temp_dir) / "comparison.md"
+            write_delivery_bundle(baseline_snapshot, KEY, baseline)
+            invalid.write_bytes(b"not a delivery bundle")
+
+            with self.assertRaisesRegex(ValueError, "有效 ZIP"):
+                write_delivery_comparison(baseline, invalid, output)
+
+            self.assertFalse(output.exists())
+            self.assertEqual({baseline, invalid}, set(Path(temp_dir).iterdir()))
+
+    def test_comparison_output_never_overwrites_and_cleans_publish_failure(self) -> None:
+        baseline_snapshot = self._case(
+            "05_memory_alarm.json", "2026-08-01T08:00:00+00:00"
+        )
+        current_snapshot = self._case(
+            "00_healthy_baseline.json", "2026-08-08T08:00:00+00:00"
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            baseline = Path(temp_dir) / "baseline.zip"
+            current = Path(temp_dir) / "current.zip"
+            output = Path(temp_dir) / "comparison.md"
+            write_delivery_bundle(baseline_snapshot, KEY, baseline)
+            write_delivery_bundle(current_snapshot, KEY, current)
+            output.write_bytes(b"existing")
+
+            with patch(
+                "rabbitmq_guard.delivery.load_verified_delivery_bundle"
+            ) as load_bundle, self.assertRaisesRegex(ValueError, "不会覆盖"):
+                write_delivery_comparison(baseline, current, output)
+            load_bundle.assert_not_called()
+            self.assertEqual(b"existing", output.read_bytes())
+
+            output.unlink()
+            with patch(
+                "rabbitmq_guard.delivery.os.link", side_effect=FileExistsError
+            ), self.assertRaisesRegex(ValueError, "不会覆盖"):
+                write_delivery_comparison(baseline, current, output)
+            self.assertFalse(output.exists())
+            self.assertEqual({baseline, current}, set(Path(temp_dir).iterdir()))
 
 
 if __name__ == "__main__":

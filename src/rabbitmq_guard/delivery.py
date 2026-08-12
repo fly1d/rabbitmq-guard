@@ -6,11 +6,12 @@ import os
 import re
 import tempfile
 import zipfile
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from . import __version__
+from .comparison import compare_runs, render_comparison_markdown
 from .diagnostics import diagnose, render_markdown
 from .models import Finding
 from .sanitizer import sanitize_snapshot
@@ -407,7 +408,7 @@ def _read_bundle(path: Path) -> Tuple[Dict[str, bytes], bytes]:
         raise ValueError("交付包不是有效 ZIP 文件") from exc
 
 
-def verify_delivery_bundle(path: Path) -> Dict[str, Any]:
+def load_verified_delivery_bundle(path: Path) -> Dict[str, Any]:
     payloads, bundle_content = _read_bundle(path)
     manifest = _read_json(payloads[MANIFEST_NAME], MANIFEST_NAME)
     _require_keys(manifest, MANIFEST_KEYS, "manifest")
@@ -481,4 +482,134 @@ def verify_delivery_bundle(path: Path) -> Dict[str, Any]:
         "summary": summary,
         "bundle_sha256": _sha256(bundle_content),
         "bundle_bytes": len(bundle_content),
+        "snapshot": snapshot,
+        "findings": expected_results["findings"],
     }
+
+
+def verify_delivery_bundle(path: Path) -> Dict[str, Any]:
+    delivery = load_verified_delivery_bundle(path)
+    return {
+        key: value
+        for key, value in delivery.items()
+        if key not in {"snapshot", "findings"}
+    }
+
+
+def _delivery_run(delivery: Dict[str, Any], label: str) -> Dict[str, Any]:
+    snapshot = delivery["snapshot"]
+    capture = snapshot.get("capture") or {}
+    summary = delivery["summary"]
+    return {
+        "id": delivery["bundle_sha256"],
+        "created_at": capture.get("captured_at") or "-",
+        "label": label,
+        "source_kind": "sanitized-delivery",
+        "cluster_name": delivery["cluster_name"],
+        "status": summary["status"],
+        "counts": summary["counts"],
+        "total": summary["total"],
+        "snapshot": snapshot,
+        "findings": delivery["findings"],
+    }
+
+
+def _normalized_capture_time(value: Any) -> Optional[datetime]:
+    if not isinstance(value, str):
+        return None
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def compare_delivery_bundles(
+    baseline_path: Path, current_path: Path
+) -> Dict[str, Any]:
+    baseline = load_verified_delivery_bundle(baseline_path)
+    current = load_verified_delivery_bundle(current_path)
+    if baseline["bundle_sha256"] == current["bundle_sha256"]:
+        raise ValueError("基线和复测交付包不能相同")
+    if baseline["cluster_name"] != current["cluster_name"]:
+        raise ValueError("只能比较使用同一脱敏密钥生成的同一 RabbitMQ 集群交付包")
+    baseline_source = (baseline["snapshot"].get("capture") or {}).get("source")
+    current_source = (current["snapshot"].get("capture") or {}).get("source")
+    if baseline_source != current_source:
+        raise ValueError("只能比较来自同一脱敏采集源的交付包")
+
+    baseline_time = _normalized_capture_time(
+        (baseline["snapshot"].get("capture") or {}).get("captured_at")
+    )
+    current_time = _normalized_capture_time(
+        (current["snapshot"].get("capture") or {}).get("captured_at")
+    )
+    if (
+        baseline_time is not None
+        and current_time is not None
+        and current_time < baseline_time
+    ):
+        raise ValueError("复测交付包的采集时间早于基线交付包")
+
+    comparison = compare_runs(
+        _delivery_run(baseline, "客户基线交付包"),
+        _delivery_run(current, "客户复测交付包"),
+    )
+    comparison["schema_version"] = "1.0"
+    comparison["delivery_bundles"] = {
+        "baseline": {
+            "sha256": baseline["bundle_sha256"],
+            "bytes": baseline["bundle_bytes"],
+            "generator_version": baseline["generator_version"],
+        },
+        "current": {
+            "sha256": current["bundle_sha256"],
+            "bytes": current["bundle_bytes"],
+            "generator_version": current["generator_version"],
+        },
+    }
+    return comparison
+
+
+def write_delivery_comparison(
+    baseline_path: Path,
+    current_path: Path,
+    output: Path,
+    output_format: str = "markdown",
+) -> Dict[str, Any]:
+    if output.exists():
+        raise ValueError("输出文件已存在，不会覆盖: {}".format(output))
+    if output_format not in {"json", "markdown"}:
+        raise ValueError("复测输出格式必须是 json 或 markdown")
+
+    comparison = compare_delivery_bundles(baseline_path, current_path)
+    if output_format == "json":
+        content = _json_bytes(comparison)
+    else:
+        content = render_comparison_markdown(comparison).encode("utf-8")
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path: Optional[Path] = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            prefix=".rabbitmq-guard-comparison-",
+            suffix=".tmp",
+            dir=str(output.parent),
+            delete=False,
+        ) as temporary:
+            temporary.write(content)
+            temporary.flush()
+            os.fsync(temporary.fileno())
+            temporary_path = Path(temporary.name)
+        try:
+            os.link(str(temporary_path), str(output))
+        except FileExistsError as exc:
+            raise ValueError("输出文件已存在，不会覆盖: {}".format(output)) from exc
+        temporary_path.unlink()
+        temporary_path = None
+    finally:
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink()
+            except FileNotFoundError:
+                pass
+    return comparison

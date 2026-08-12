@@ -5,7 +5,11 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Sequence
 
 from .collector import CollectionError, ManagementApiCollector
-from .delivery import verify_delivery_bundle, write_delivery_bundle
+from .delivery import (
+    verify_delivery_bundle,
+    write_delivery_bundle,
+    write_delivery_comparison,
+)
 from .diagnostics import diagnose, render_json, render_markdown, render_text
 from .generator import generate_variants, load_cases, write_jsonl
 from .sanitizer import DEFAULT_KEY_ENV, redaction_key_from_env, sanitize_snapshot
@@ -102,6 +106,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify_parser.add_argument("bundle", type=Path)
 
+    compare_deliveries_parser = subparsers.add_parser(
+        "compare-deliveries", help="校验并比较客户基线与复测交付包"
+    )
+    compare_deliveries_parser.add_argument("baseline", type=Path)
+    compare_deliveries_parser.add_argument("current", type=Path)
+    compare_deliveries_parser.add_argument(
+        "--format", choices=("json", "markdown"), default="markdown"
+    )
+    compare_deliveries_parser.add_argument("--output", type=Path, required=True)
+
     serve_parser = subparsers.add_parser("serve", help="启动本地诊断工作台")
     serve_parser.add_argument("--host", default="127.0.0.1")
     serve_parser.add_argument("--port", type=int, default=8787)
@@ -197,6 +211,21 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
                     verification["summary"]["total"],
                     verification["generator_version"] or "unknown",
                     verification["bundle_sha256"],
+                )
+            )
+            return
+
+        if args.command == "compare-deliveries":
+            comparison = write_delivery_comparison(
+                args.baseline, args.current, args.output, args.format
+            )
+            print(
+                "已校验交付包并写入整改复测结果到 {}（{} · 新增 {} · 已解决 {} · 持续 {}）".format(
+                    args.output,
+                    comparison["outcome"],
+                    comparison["summary"]["new"],
+                    comparison["summary"]["resolved"],
+                    comparison["summary"]["persisting"],
                 )
             )
             return

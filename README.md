@@ -110,6 +110,17 @@ python3 -m rabbitmq_guard deliver \
 python3 -m rabbitmq_guard verify-delivery rabbitmq-guard-delivery.zip
 ```
 
+整改完成后，客户使用同一脱敏密钥和同一 RabbitMQ Guard 版本生成复测包。顾问可以一条命令校验并比较两次交付，得到新增、已解决和持续风险：
+
+```bash
+python3 -m rabbitmq_guard compare-deliveries \
+  baseline-delivery.zip \
+  followup-delivery.zip \
+  --output remediation-review.md
+```
+
+需要接入内部流程时可增加 `--format json`。比较器会在写报告前完整校验两个 ZIP，拒绝相同交付包、不同伪名集群、不同脱敏采集源、不同脱敏密钥或采集时间倒置；报告不会记录输入文件名。
+
 交付包只包含脱敏快照、机器可读诊断结果、Markdown 报告和 manifest，不包含密码、密钥或原始快照。命令输出的整个 ZIP SHA-256 应通过另一个可信渠道发送给接收方核对。该哈希不是数字签名，不能单独证明生成者身份。格式、流程和失败处理见 [docs/DELIVERY.md](docs/DELIVERY.md)。
 
 ## 连接本地或测试集群
