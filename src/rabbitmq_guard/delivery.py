@@ -532,6 +532,10 @@ def compare_delivery_bundles(
         raise ValueError("基线和复测交付包不能相同")
     if baseline["cluster_name"] != current["cluster_name"]:
         raise ValueError("只能比较使用同一脱敏密钥生成的同一 RabbitMQ 集群交付包")
+    baseline_source = (baseline["snapshot"].get("capture") or {}).get("source")
+    current_source = (current["snapshot"].get("capture") or {}).get("source")
+    if baseline_source != current_source:
+        raise ValueError("只能比较来自同一脱敏采集源的交付包")
 
     baseline_time = _normalized_capture_time(
         (baseline["snapshot"].get("capture") or {}).get("captured_at")

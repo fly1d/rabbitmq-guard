@@ -240,7 +240,7 @@ class DeliveryTests(unittest.TestCase):
         self.assertNotIn("mq.customer.internal", report)
         self.assertNotIn("rabbit@node1", report)
 
-    def test_compare_rejects_same_bundle_other_cluster_and_reversed_time(self) -> None:
+    def test_compare_rejects_same_bundle_other_identity_and_reversed_time(self) -> None:
         baseline_snapshot = self._case(
             "05_memory_alarm.json", "2026-08-08T08:00:00+00:00"
         )
@@ -251,16 +251,21 @@ class DeliveryTests(unittest.TestCase):
             baseline = Path(temp_dir) / "baseline.zip"
             current = Path(temp_dir) / "current.zip"
             other_key = Path(temp_dir) / "other-key.zip"
+            other_source = Path(temp_dir) / "other-source.zip"
             write_delivery_bundle(baseline_snapshot, KEY, baseline)
             write_delivery_bundle(current_snapshot, KEY, current)
             write_delivery_bundle(
                 current_snapshot, "another-correct-horse-battery-staple", other_key
             )
+            current_snapshot["capture"]["source"] = "https://mq-backup.internal:15672"
+            write_delivery_bundle(current_snapshot, KEY, other_source)
 
             with self.assertRaisesRegex(ValueError, "不能相同"):
                 compare_delivery_bundles(baseline, baseline)
             with self.assertRaisesRegex(ValueError, "同一脱敏密钥"):
                 compare_delivery_bundles(baseline, other_key)
+            with self.assertRaisesRegex(ValueError, "同一脱敏采集源"):
+                compare_delivery_bundles(baseline, other_source)
             with self.assertRaisesRegex(ValueError, "早于基线"):
                 compare_delivery_bundles(baseline, current)
 
