@@ -10,6 +10,7 @@
 - 内存/磁盘告警、FD 压力、积压、低消费容量、unacked、重复投递、quorum 可用性和连接压力规则
 - RabbitMQ Management API 只读采集器
 - 使用本地密钥生成稳定伪名的快照脱敏器
+- 一条命令生成可校验的客户诊断交付包
 - 文本、JSON、Markdown 三种报告格式
 - 历史诊断基线对比、整改复测结论和 Markdown 复测报告
 - 可批量生成带标签 JSONL 变体的数据生成器
@@ -80,6 +81,36 @@ python3 -m rabbitmq_guard collect \
 ```
 
 脱敏器会删除案例说明、队列参数和未知字段，并伪名化直接标识符；诊断所需的数值、布尔状态、时间戳和拓扑关系仍会保留。它降低误传客户标识的风险，但不是匿名化，工作负载规模、速率、时间和拓扑数量仍可能敏感。完整边界和共享检查见 [docs/PRIVACY.md](docs/PRIVACY.md)。
+
+## 一次生成客户交付包
+
+付费试点不需要手工串联采集、脱敏、诊断和报告。客户可以直接从 RabbitMQ 生成一个固定格式 ZIP；原始快照只在进程内存中存在，不落盘：
+
+```bash
+export RABBITMQ_PASSWORD='your-password'
+export RABBITMQ_GUARD_REDACTION_KEY="$(openssl rand -hex 32)"
+
+python3 -m rabbitmq_guard deliver \
+  --url http://localhost:15672 \
+  --username monitoring-user \
+  --output rabbitmq-guard-delivery.zip
+```
+
+也可以从尚未脱敏的标准化快照生成：
+
+```bash
+python3 -m rabbitmq_guard deliver \
+  --snapshot snapshot.json \
+  --output rabbitmq-guard-delivery.zip
+```
+
+接收方校验固定文件清单、SHA-256、脱敏格式、诊断结果和报告一致性：
+
+```bash
+python3 -m rabbitmq_guard verify-delivery rabbitmq-guard-delivery.zip
+```
+
+交付包只包含脱敏快照、机器可读诊断结果、Markdown 报告和 manifest，不包含密码、密钥或原始快照。命令输出的整个 ZIP SHA-256 应通过另一个可信渠道发送给接收方核对。该哈希不是数字签名，不能单独证明生成者身份。格式、流程和失败处理见 [docs/DELIVERY.md](docs/DELIVERY.md)。
 
 ## 连接本地或测试集群
 

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Sequence
 
 from .collector import CollectionError, ManagementApiCollector
+from .delivery import verify_delivery_bundle, write_delivery_bundle
 from .diagnostics import diagnose, render_json, render_markdown, render_text
 from .generator import generate_variants, load_cases, write_jsonl
 from .sanitizer import DEFAULT_KEY_ENV, redaction_key_from_env, sanitize_snapshot
@@ -85,6 +86,22 @@ def build_parser() -> argparse.ArgumentParser:
     sanitize_parser.add_argument("--output", type=Path, required=True)
     sanitize_parser.add_argument("--redaction-key-env", default=DEFAULT_KEY_ENV)
 
+    deliver_parser = subparsers.add_parser(
+        "deliver", help="生成可校验的客户脱敏诊断交付包"
+    )
+    source_group = deliver_parser.add_mutually_exclusive_group(required=True)
+    source_group.add_argument("--snapshot", type=Path)
+    source_group.add_argument("--url")
+    deliver_parser.add_argument("--username", default="guest")
+    deliver_parser.add_argument("--password-env", default="RABBITMQ_PASSWORD")
+    deliver_parser.add_argument("--redaction-key-env", default=DEFAULT_KEY_ENV)
+    deliver_parser.add_argument("--output", type=Path, required=True)
+
+    verify_parser = subparsers.add_parser(
+        "verify-delivery", help="校验客户交付包的完整性和内部一致性"
+    )
+    verify_parser.add_argument("bundle", type=Path)
+
     serve_parser = subparsers.add_parser("serve", help="启动本地诊断工作台")
     serve_parser.add_argument("--host", default="127.0.0.1")
     serve_parser.add_argument("--port", type=int, default=8787)
@@ -149,6 +166,39 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
                 json.dumps(sanitized, ensure_ascii=False, indent=2), encoding="utf-8"
             )
             print("已写入脱敏快照到 {}".format(args.output))
+            return
+
+        if args.command == "deliver":
+            if args.output.exists():
+                raise ValueError("输出文件已存在，不会覆盖: {}".format(args.output))
+            redaction_key = redaction_key_from_env(args.redaction_key_env)
+            if args.snapshot is not None:
+                snapshot = _load_json(args.snapshot)
+            else:
+                collector = ManagementApiCollector.from_env(
+                    args.url, args.username, args.password_env
+                )
+                snapshot = collector.collect()
+            verification = write_delivery_bundle(snapshot, redaction_key, args.output)
+            print(
+                "已生成并校验客户交付包到 {}（{} 项诊断结果）\nSHA-256: {}".format(
+                    args.output,
+                    verification["summary"]["total"],
+                    verification["bundle_sha256"],
+                )
+            )
+            return
+
+        if args.command == "verify-delivery":
+            verification = verify_delivery_bundle(args.bundle)
+            print(
+                "交付包校验通过：{} · {} 项诊断结果 · 生成器 v{}\nSHA-256: {}".format(
+                    verification["cluster_name"],
+                    verification["summary"]["total"],
+                    verification["generator_version"] or "unknown",
+                    verification["bundle_sha256"],
+                )
+            )
             return
 
         if args.command == "generate":
