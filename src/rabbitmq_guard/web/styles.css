@@ -314,6 +314,14 @@ label[for] {
   font-weight: 750;
 }
 
+.result-heading {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 h1,
 h2,
 p {
@@ -321,10 +329,22 @@ p {
 }
 
 h1 {
-  margin-bottom: 8px;
+  margin-bottom: 0;
   font-size: 25px;
   line-height: 32px;
   font-weight: 760;
+  overflow-wrap: anywhere;
+}
+
+.privacy-badge {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border: 1px solid #8db5a2;
+  border-radius: 4px;
+  background: #edf7f1;
+  color: var(--healthy);
+  font-size: 10px;
+  font-weight: 750;
 }
 
 h2 {
@@ -335,6 +355,7 @@ h2 {
 }
 
 .result-meta {
+  margin-top: 8px;
   color: var(--ink-muted);
   line-height: 20px;
 }

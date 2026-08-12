@@ -9,6 +9,7 @@
 - 10 类异常案例和 1 个健康基线，全部明确标注为合成数据
 - 内存/磁盘告警、FD 压力、积压、低消费容量、unacked、重复投递、quorum 可用性和连接压力规则
 - RabbitMQ Management API 只读采集器
+- 使用本地密钥生成稳定伪名的快照脱敏器
 - 文本、JSON、Markdown 三种报告格式
 - 历史诊断基线对比、整改复测结论和 Markdown 复测报告
 - 可批量生成带标签 JSONL 变体的数据生成器
@@ -58,6 +59,27 @@ python3 -m rabbitmq_guard serve --enable-live
 打开 <http://127.0.0.1:8787>。工作台支持演示案例、JSON 快照上传、实时只读连接、历史诊断和 Markdown 报告下载。任意历史记录都可以设为基线；打开同一集群的另一条记录后，工作台会展示新增、已解决和持续风险，并生成整改复测报告。诊断记录保存在 `var/rabbitmq-guard.db`，实时连接密码只用于当次请求，不写入数据库。
 
 为了避免把带有网络访问能力的接口暴露出去，启用实时连接时服务只允许绑定回环地址。当前版本是本地付费试点工具，不应直接作为公网 SaaS 部署。
+
+## 脱敏后再交付快照
+
+客户不希望共享生产标识符时，可以在本机生成稳定伪名快照。密钥只从环境变量读取，不进入命令参数或输出文件；基线和复测使用同一密钥时，集群、节点、vhost、队列和连接等伪名保持一致。
+
+```bash
+# 首次生成后存入客户自己的密钥管理系统，后续复测继续使用同一值
+export RABBITMQ_GUARD_REDACTION_KEY="$(openssl rand -hex 32)"
+
+# 脱敏已有标准化快照
+python3 -m rabbitmq_guard sanitize snapshot.json --output sanitized.json
+
+# 采集时只落盘脱敏结果
+python3 -m rabbitmq_guard collect \
+  --url http://localhost:15672 \
+  --username monitoring-user \
+  --sanitize \
+  --output sanitized.json
+```
+
+脱敏器会删除案例说明、队列参数和未知字段，并伪名化直接标识符；诊断所需的数值、布尔状态、时间戳和拓扑关系仍会保留。它降低误传客户标识的风险，但不是匿名化，工作负载规模、速率、时间和拓扑数量仍可能敏感。完整边界和共享检查见 [docs/PRIVACY.md](docs/PRIVACY.md)。
 
 ## 连接本地或测试集群
 
@@ -111,5 +133,6 @@ make smoke
 - 单次 Management API 快照不能可靠判断趋势；积压规则因此标记为中等置信度。
 - 固定阈值只是 MVP 默认值，必须根据队列业务基线校准。
 - 合成案例用于开发和演示，不能替代真实环境的误报/漏报评估。
+- 稳定脱敏输出可跨时间关联，不能当作匿名数据公开发布。
 
 付费试点的客户画像、交付范围、价格假设和停止条件见 [docs/paid-pilot.md](docs/paid-pilot.md)。

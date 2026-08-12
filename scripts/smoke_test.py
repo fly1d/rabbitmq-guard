@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from rabbitmq_guard.webapp import create_server  # noqa: E402
+from rabbitmq_guard.sanitizer import sanitize_snapshot  # noqa: E402
 
 
 def request_json(base_url, path, payload=None):
@@ -42,9 +43,10 @@ def main():
                 html = response.read().decode("utf-8")
             assert response.status == 200
             assert "RabbitMQ Guard" in html
+            assert 'id="result-privacy"' in html
 
             _, health = request_json(base_url, "/api/health")
-            assert health == {"ok": True, "version": "0.2.0", "live_enabled": False}
+            assert health == {"ok": True, "version": "0.3.0", "live_enabled": False}
 
             _, result = request_json(
                 base_url,
@@ -59,6 +61,24 @@ def main():
                 report = response.read().decode("utf-8")
             assert "RabbitMQ Guard 诊断报告" in report
             assert "集群：lab" in report
+
+            raw_snapshot = json.loads(
+                (ROOT / "data" / "scenarios" / "09_quorum_lost.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            sanitized = sanitize_snapshot(raw_snapshot, "smoke-test-key-2026")
+            serialized = json.dumps(sanitized, ensure_ascii=False)
+            assert "ledger.commands" not in serialized
+            assert "rabbit@node1" not in serialized
+            assert "scenario" not in sanitized
+            _, sanitized_result = request_json(
+                base_url,
+                "/api/analyze/snapshot",
+                {"snapshot": sanitized, "label": "sanitized-smoke.json"},
+            )
+            assert sanitized_result["capture"]["kind"] == "sanitized"
+            assert sanitized_result["findings"][0]["rule_id"] == "queue.quorum_lost"
 
             _, healthy = request_json(
                 base_url,

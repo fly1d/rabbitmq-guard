@@ -24,6 +24,7 @@ const elements = {
   serverState: document.querySelector("#server-state"),
   resultKicker: document.querySelector("#result-kicker"),
   resultTitle: document.querySelector("#result-title"),
+  resultPrivacy: document.querySelector("#result-privacy"),
   resultMeta: document.querySelector("#result-meta"),
   counts: {
     critical: document.querySelector("#count-critical"),
@@ -182,11 +183,12 @@ async function refreshComparison() {
 }
 
 function renderResult(result, kicker = "诊断完成") {
-  const { summary, cluster, findings, run } = result;
+  const { summary, cluster, capture, findings, run } = result;
   state.currentRunId = run?.id || null;
   hideComparison();
   elements.resultKicker.textContent = kicker;
   elements.resultTitle.textContent = cluster.name || "unknown";
+  elements.resultPrivacy.classList.toggle("hidden", capture?.kind !== "sanitized");
   const timestamp = run?.created_at ? new Date(run.created_at).toLocaleString("zh-CN", { hour12: false }) : "未保存";
   elements.resultMeta.textContent = `${summary.total} 项结果 · ${timestamp}`;
 

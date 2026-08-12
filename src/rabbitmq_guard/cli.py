@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional, Sequence
 from .collector import CollectionError, ManagementApiCollector
 from .diagnostics import diagnose, render_json, render_markdown, render_text
 from .generator import generate_variants, load_cases, write_jsonl
+from .sanitizer import DEFAULT_KEY_ENV, redaction_key_from_env, sanitize_snapshot
 from .webapp import serve
 
 
@@ -59,6 +60,12 @@ def build_parser() -> argparse.ArgumentParser:
     collect_parser.add_argument("--username", default="guest")
     collect_parser.add_argument("--password-env", default="RABBITMQ_PASSWORD")
     collect_parser.add_argument("--output", type=Path, required=True)
+    collect_parser.add_argument(
+        "--sanitize",
+        action="store_true",
+        help="使用环境变量中的密钥对输出快照做稳定伪名脱敏",
+    )
+    collect_parser.add_argument("--redaction-key-env", default=DEFAULT_KEY_ENV)
 
     live_parser = subparsers.add_parser("live", help="采集并立即诊断，不保存密码")
     live_parser.add_argument("--url", default="http://localhost:15672")
@@ -72,6 +79,11 @@ def build_parser() -> argparse.ArgumentParser:
     generate_parser.add_argument("--count-per-case", type=int, default=20)
     generate_parser.add_argument("--seed", type=int, default=20260811)
     generate_parser.add_argument("--output", type=Path, required=True)
+
+    sanitize_parser = subparsers.add_parser("sanitize", help="脱敏一个标准化 JSON 快照")
+    sanitize_parser.add_argument("snapshot", type=Path)
+    sanitize_parser.add_argument("--output", type=Path, required=True)
+    sanitize_parser.add_argument("--redaction-key-env", default=DEFAULT_KEY_ENV)
 
     serve_parser = subparsers.add_parser("serve", help="启动本地诊断工作台")
     serve_parser.add_argument("--host", default="127.0.0.1")
@@ -108,17 +120,35 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
             return
 
         if args.command in {"collect", "live"}:
+            redaction_key = None
+            if args.command == "collect" and args.sanitize:
+                redaction_key = redaction_key_from_env(args.redaction_key_env)
             collector = ManagementApiCollector.from_env(
                 args.url, args.username, args.password_env
             )
             snapshot = collector.collect()
             if args.command == "collect":
+                if args.sanitize:
+                    if redaction_key is None:
+                        raise ValueError("脱敏密钥未加载")
+                    snapshot = sanitize_snapshot(snapshot, redaction_key)
                 args.output.write_text(
                     json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8"
                 )
-                print("已采集只读快照到 {}".format(args.output))
+                message = "已采集并脱敏快照到" if args.sanitize else "已采集只读快照到"
+                print("{} {}".format(message, args.output))
             else:
                 _write_output(_render(diagnose(snapshot), args.format), args.output)
+            return
+
+        if args.command == "sanitize":
+            sanitized = sanitize_snapshot(
+                _load_json(args.snapshot), redaction_key_from_env(args.redaction_key_env)
+            )
+            args.output.write_text(
+                json.dumps(sanitized, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            print("已写入脱敏快照到 {}".format(args.output))
             return
 
         if args.command == "generate":
