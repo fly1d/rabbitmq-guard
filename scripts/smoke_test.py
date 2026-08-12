@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from rabbitmq_guard.webapp import create_server  # noqa: E402
+from rabbitmq_guard.delivery import verify_delivery_bundle, write_delivery_bundle  # noqa: E402
 from rabbitmq_guard.sanitizer import sanitize_snapshot  # noqa: E402
 
 
@@ -46,7 +47,7 @@ def main():
             assert 'id="result-privacy"' in html
 
             _, health = request_json(base_url, "/api/health")
-            assert health == {"ok": True, "version": "0.3.0", "live_enabled": False}
+            assert health == {"ok": True, "version": "0.4.0", "live_enabled": False}
 
             _, result = request_json(
                 base_url,
@@ -79,6 +80,16 @@ def main():
             )
             assert sanitized_result["capture"]["kind"] == "sanitized"
             assert sanitized_result["findings"][0]["rule_id"] == "queue.quorum_lost"
+
+            delivery_path = Path(temp_dir) / "customer-delivery.zip"
+            delivery = write_delivery_bundle(
+                raw_snapshot, "smoke-test-key-2026", delivery_path
+            )
+            assert delivery["summary"]["status"] == "critical"
+            assert len(delivery["bundle_sha256"]) == 64
+            verified = verify_delivery_bundle(delivery_path)
+            assert verified["bundle_sha256"] == delivery["bundle_sha256"]
+            assert "ledger.commands" not in delivery_path.read_bytes().decode("latin-1")
 
             _, healthy = request_json(
                 base_url,
