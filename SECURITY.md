@@ -17,4 +17,8 @@ https://github.com/fly1d/rabbitmq-guard/security/advisories/new
 - 实时连接只允许在回环地址启动的工作台中启用。
 - RabbitMQ 密码只用于当次 Management API 请求，不写入 SQLite。
 - 诊断器只读，不执行 RabbitMQ 配置或修复动作。
-- 上传快照限制为 5MB，但仍可能包含客户标识；操作者负责脱敏和数据保留策略。
+- 上传快照限制为 5MB；原始快照及上传文件名仍可能包含客户标识，并会随诊断记录保存在本地 SQLite。
+- `sanitize` 和 `collect --sanitize` 使用环境变量中的 HMAC 密钥生成稳定伪名，密钥不写入输出；至少使用 16 字节密钥，推荐使用 32 个随机字节并存入客户自己的密钥管理系统。
+- 脱敏输出保留时间、工作负载规模、速率和拓扑数量，且同一密钥生成的伪名可关联，因此属于伪名化数据而不是匿名数据。
+
+脱敏威胁模型、残余风险和交付检查见 [docs/PRIVACY.md](docs/PRIVACY.md)。
