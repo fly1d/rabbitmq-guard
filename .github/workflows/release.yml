@@ -71,7 +71,7 @@ jobs:
         working-directory: dist
         run: sha256sum *.whl *.tar.gz > SHA256SUMS
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: "dist/*"
       - name: Publish release artifacts
